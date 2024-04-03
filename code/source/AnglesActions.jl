@@ -652,3 +652,133 @@ function bisection(fun::Function, xl::Float64, xu::Float64, tolx::Float64=1.0*10
         end
     end
 end
+
+
+###############################################################
+# Test angles theta_u, theta_v
+###############################################################
+
+function test_thetau_thetav(E::Float64, Lz::Float64, I3::Float64, nbt::Int64=100)
+
+
+    u0, u1 = find_bounds_u(E,Lz,I3)
+    v0, v1 = find_bounds_v(E,Lz,I3)
+
+    su = 0.5*(u0+u1)
+    tu = 0.5*(u1-u0)
+
+    sv = 0.5*(v0+v1)
+    tv = 0.5*(v1-v0)
+
+
+    tab_uEff = [-pi/2 + pi*i/(nbt) for i=0:nbt]
+    tab_vEff = [-pi/2 + pi*i/(nbt) for i=0:nbt]
+
+    tab_uEff_v_Eff = zeros(Float64, (nbt+1)^2, 2)
+
+    index = 1
+
+    for iu=1:nbt+1
+        uEff = tab_uEff[iu]
+        for iv=1:nbt+1
+            vEff = tab_vEff[iv]
+
+            tab_uEff_v_Eff[index,1], tab_uEff_v_Eff[index,2] = uEff, vEff 
+        
+            index += 1
+        end
+    end
+
+    tab_thetau = zeros(Float64, (nbt+1)^2)
+    tab_thetav = zeros(Float64, (nbt+1)^2)
+
+    tab_dpudJu = zeros(Float64, nbt+1)
+    tab_dpudJv = zeros(Float64, nbt+1)
+    tab_dpvdJu = zeros(Float64, nbt+1)
+    tab_dpvdJv = zeros(Float64, nbt+1)
+
+    tab_dpudJu[1] = 0.0
+    tab_dpudJv[1] = 0.0
+    tab_dpvdJu[1] = 0.0
+    tab_dpvdJv[1] = 0.0
+
+    # dJudE, dJudI3, dJudLz = dJu(E,Lz,I3)
+    # dJvdE, dJvdI3, dJvdLz = dJv(E,Lz,I3)
+
+    freq_matrix = frequency_matrix(E,Lz,I3)[1]
+
+    dEdJu = freq_matrix[1,1]
+    dEdJv = freq_matrix[1,2]
+
+    dI3dJu = freq_matrix[2,1]
+    dI3dJv = freq_matrix[2,2]
+
+
+
+    for iu=1:nbt
+
+        uEff = -pi/2 + pi*(iu-0.5)/(nbt) # midpoint integration 
+        u = tu*sin(uEff) + su
+        tpu = _tpu(uEff,E,Lz,I3,u0,u1)
+
+
+        dpude = Delta^2 * sinh(u)^2/tpu
+        dpudi3 = -Delta^2/tpu
+        # dpudlz = -Lz/(tpu* sinh(u)^2)
+
+        dpudju = dEdJu*dpude + dI3dJu*dpudi3 
+        dpudjv = dEdJv*dpude + dI3dJv*dpudi3 
+
+        tab_dpudJu[iu+1] = tab_dpudJu[iu] + pi/(nbt) * dpudju
+        tab_dpudJv[iu+1] = tab_dpudJv[iu] + pi/(nbt) * dpudjv
+
+    end
+
+    for iv=1:nbt
+
+        vEff = -pi/2 + pi*(iv-0.5)/(nbt) # midpoint integration 
+        v = tv*sin(vEff) + sv
+        tpv = _tpv(vEff,E,Lz,I3,v0,v1)
+
+
+        dpvde = Delta^2 * sin(v)^2/tpv
+        dpvdi3 = Delta^2/tpv
+        # dpvdlz = -Lz/(tpv* sin(v)^2)
+
+        dpvdju = dEdJu*dpvde + dI3dJu*dpvdi3  
+        dpvdjv = dEdJv*dpvde + dI3dJv*dpvdi3  
+
+        tab_dpvdJu[iv+1] = tab_dpvdJu[iv] + pi/(nbt) * dpvdju
+        tab_dpvdJv[iv+1] = tab_dpvdJv[iv] + pi/(nbt) * dpvdjv
+
+    end
+
+    index = 1
+    for iu=1:nbt+1
+
+        for iv=1:nbt+1
+
+            tab_thetau[index] = tab_dpudJu[iu]+tab_dpvdJu[iv]
+            tab_thetav[index] = tab_dpudJv[iu]+tab_dpvdJv[iv]
+
+            index += 1
+        end
+    end
+
+    namefile = "../../data/angles.hdf5"
+    
+    file = h5open(namefile, "w")
+
+    write(file, "tab_thetau", tab_thetau)
+    write(file, "tab_thetav", tab_thetav)
+    write(file, "tab_uEff_vEff", tab_uEff_v_Eff)
+
+    close(file)
+
+
+
+end
+    
+
+            
+

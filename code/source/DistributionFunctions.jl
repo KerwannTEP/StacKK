@@ -94,6 +94,56 @@ function F_actions(Ju::Float64, Jv::Float64, Lz::Float64, nbK::Int64=100)
 
 end
 
+# # atan Ju, atan Jv, atan Lz
+# function get_DF_actions(nbJ::Int64=100, nbK::Int64=100)
+
+#     tab_F_JuJvLz = zeros(Float64, nbJ, nbJ, nbJ)
+
+#     for iu=1:nbJ 
+#         atanJu = pi/2*(iu-1)/(nbJ -1)
+#         Ju = tan(atanJu)
+#         for iv=1:nbJ 
+#             atanJv = pi/2*(iv-1)/(nbJ -1)
+#             Jv = tan(atanJv)
+#             for iz=1:nbJ 
+#                 atanLz = -pi/2+pi*(iz-1)/(nbJ -1)
+#                 Lz = tan(atanLz)
+#                 println((Ju,Jv,Lz))
+#                 # E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+#                 if (iu != nbJ && iv != nbJ && iz != 1 && iz != nbJ)
+#                     tab_F_JuJvLz[iu,iv,iz] = F_actions(Ju,Jv,Lz,nbK)
+#                 else
+#                     tab_F_JuJvLz[iu,iv,iz] = 0.0
+#                 end
+#             end
+#         end
+
+#     end
+
+#     return tab_F_JuJvLz
+# end
+
+# const nbJsampling = 100
+
+# const tab_DF = get_DF_actions(nbJsampling)
+
+# function itp_DF_actions(Ju::Float64, Jv::Float64, Lz::Float64, nbJ::Int64=nbJsampling)
+
+#     atanJu = atan(Ju)
+#     atanJv = atan(Jv)
+#     atanLz = atan(Lz)
+
+#     iu = 1 + floor(Int64,atanJu/(pi/2.0/(nbJ -1)))
+#     iv = 1 + floor(Int64,atanJv/(pi/2.0/(nbJ -1)))
+#     iz = 1 + floor(Int64,(atanLz+pi/2.0)/(pi/(nbJ -1)))
+
+#     # Bilinear/Trilinear
+
+#     return tab_D[iu,iv,iz]
+
+# end
+
+
 
 # Derivatives
 

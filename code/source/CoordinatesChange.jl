@@ -30,7 +30,7 @@ function E_Lz_I3_from_Ju_Lz_Jv(Ju::Float64, Lz::Float64, Jv::Float64, err::Float
 
         determinant = dJudE *dJvdI3  - dJudI3 *dJvdE 
 
-
+        # Manually compute the inverse to save allocations and avoid huge garbage collection (GC)
         invJacobian11 = dJvdI3/determinant
         invJacobian12 = -dJudI3 /determinant
         invJacobian21 = -dJvdE/determinant

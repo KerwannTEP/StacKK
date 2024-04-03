@@ -16,7 +16,7 @@ tabargs = ArgParseSettings()
     "--lmax"
     help = "Maximum harmonic number ell"
     arg_type = Int64
-    default = 2
+    default = 0
     "--mmax"
     help = "Maximum harmonic number mmax"
     arg_type = Int64
@@ -24,7 +24,7 @@ tabargs = ArgParseSettings()
     "--nmax"
     help = "Maximum number of radial basis elements"
     arg_type = Int64
-    default = 5
+    default = 0
     "--kmax"
     help = "Maximum resonance number"
     arg_type = Int64
