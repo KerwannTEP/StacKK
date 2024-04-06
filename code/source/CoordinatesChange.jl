@@ -3,7 +3,7 @@
 # include("Args.jl")
 
 # brackets errors for E_shell sometimes
-function E_Lz_I3_from_Ju_Lz_Jv(Ju::Float64, Lz::Float64, Jv::Float64, err::Float64=1.0*10^(-10), maxIter::Int64=50)
+function E_Lz_I3_from_Ju_Lz_Jv(Ju::Float64, Lz::Float64, Jv::Float64, err::Float64=1.0*10^(-5), maxIter::Int64=50)
 
     # Initialize within allowed (E, I3) region
     I3_guess = Lz^2/(2.0*Delta^2) - _E0 # E + I3 = E - E_0 + Lz^2/(2*Delta^2) >= Lz^2/(2*Delta^2)
@@ -23,8 +23,9 @@ function E_Lz_I3_from_Ju_Lz_Jv(Ju::Float64, Lz::Float64, Jv::Float64, err::Float
     while (((Ju_guess-Ju)^2 + (Jv_guess-Jv)^2 > err^2) && (iter < maxIter))
 
         # println("c0")
-        dJudE, dJudI3, dJudLz = dJu(E_guess,Lz,I3_guess)
-        dJvdE, dJvdI3, dJvdLz = dJv(E_guess,Lz,I3_guess)
+        dJudE, dJudI3 = dJudEI3(E_guess,Lz,I3_guess)
+        # dJvdE, dJvdI3, dJvdLz = dJv(E_guess,Lz,I3_guess)
+        dJvdE, dJvdI3 = dJvdEI3(E_guess,Lz,I3_guess)
 
         # println("c1")
 
@@ -79,7 +80,7 @@ function E_Lz_I3_from_Ju_Lz_Jv(Ju::Float64, Lz::Float64, Jv::Float64, err::Float
 
     # println("b1")
 
-    return E_guess, Lz, I3_guess, iter
+    return E_guess, Lz, I3_guess#, iter
 end
 
 

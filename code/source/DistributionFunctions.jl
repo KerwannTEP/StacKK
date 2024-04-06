@@ -94,58 +94,15 @@ function F_actions(Ju::Float64, Jv::Float64, Lz::Float64, nbK::Int64=100)
 
 end
 
-# # atan Ju, atan Jv, atan Lz
-# function get_DF_actions(nbJ::Int64=100, nbK::Int64=100)
-
-#     tab_F_JuJvLz = zeros(Float64, nbJ, nbJ, nbJ)
-
-#     for iu=1:nbJ 
-#         atanJu = pi/2*(iu-1)/(nbJ -1)
-#         Ju = tan(atanJu)
-#         for iv=1:nbJ 
-#             atanJv = pi/2*(iv-1)/(nbJ -1)
-#             Jv = tan(atanJv)
-#             for iz=1:nbJ 
-#                 atanLz = -pi/2+pi*(iz-1)/(nbJ -1)
-#                 Lz = tan(atanLz)
-#                 println((Ju,Jv,Lz))
-#                 # E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
-#                 if (iu != nbJ && iv != nbJ && iz != 1 && iz != nbJ)
-#                     tab_F_JuJvLz[iu,iv,iz] = F_actions(Ju,Jv,Lz,nbK)
-#                 else
-#                     tab_F_JuJvLz[iu,iv,iz] = 0.0
-#                 end
-#             end
-#         end
-
-#     end
-
-#     return tab_F_JuJvLz
-# end
-
-# const nbJsampling = 100
-
-# const tab_DF = get_DF_actions(nbJsampling)
-
-# function itp_DF_actions(Ju::Float64, Jv::Float64, Lz::Float64, nbJ::Int64=nbJsampling)
-
-#     atanJu = atan(Ju)
-#     atanJv = atan(Jv)
-#     atanLz = atan(Lz)
-
-#     iu = 1 + floor(Int64,atanJu/(pi/2.0/(nbJ -1)))
-#     iv = 1 + floor(Int64,atanJv/(pi/2.0/(nbJ -1)))
-#     iz = 1 + floor(Int64,(atanLz+pi/2.0)/(pi/(nbJ -1)))
-
-#     # Bilinear/Trilinear
-
-#     return tab_D[iu,iv,iz]
-
-# end
-
-
+using Plots
 
 # Derivatives
+
+
+# Mistake somewhere here for E-gradient?
+# Plot derivative 
+# Compare each components
+
 
 # For now, use the integral definition
 # Batsleer & Dejonghe (1993)
@@ -156,8 +113,8 @@ function _dFdE_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
     # dF/dtE
     tE = _tE(E)
     tLz = _tLz(Lz)
-    f0 = M/(G*M*(a+c))^(3/2)*(tc^2)/(2^(3/2)*pi^3*ta)
-    z = 2*h*tE*tLz^2
+    f0 = M/(G*M*(a+c))^(3/2)*(tc^2)/(2.0^(3/2)*pi^3*ta)
+    z = 2.0*h*tE*tLz^2
 
     # Derivative on tE^2.5
     sum1 = 0.0
@@ -165,7 +122,7 @@ function _dFdE_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
         t = 1.0/nbK*(k-0.5)
         xe = x_eps(tE,eps,z,t)
 
-        num = (1-t^2)*((3.0+4.0*xe-xe^2)*(1.0-xe)*(1-t^2)+12.0*t^2)
+        num = (1.0-t^2)*((3.0+4.0*xe-xe^2)*(1.0-xe)*(1.0-t^2)+12.0*t^2)
         den = (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^5
 
         sum1 += num/den 
@@ -173,32 +130,91 @@ function _dFdE_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
 
     sum1 *= 2.5*f0*tE^(3/2)*1.0/nbK
 
-    dzdtE = 2*h*tLz^2
+    dzdE = 2.0*h*tLz^2
 
     # Derivative within the integral 
+    # ISSUE HERE ?
+
+    # data = zeros(Float64,nbK)
+
     sum2 = 0.0
     for k=1:nbK
+        
+        
+        # t = 1.0/nbK*(k-0.5)
+        # xe = x_eps(tE,eps,z,t)
+
+        # dxedE = 2*ta*sqrt(1.0-t^2)/(1.0+eps*sqrt(z)*t) + 2.0*ta*tE*t*sqrt(1-t^2)*(-eps*t*0.5*dzdE/sqrt(z))/(1+eps*sqrt(z)*t)^2
+
+
+
+        
+    #     ((1 - t^2)  (-2  a  t  (-1 + t^2)  (1 - 2  a  t  Sqrt[1 - t^2]  tE + 
+    #      Sqrt[2]  eps  t  Sqrt[
+    #       h Lz^2 tE])  (2  eps^3  h^2  Lz^4  t^3  Sqrt[2 - 2 t^2]
+    #         tE^2 + 
+    #      8  eps^2  t^2  (h Lz^2 tE)^(
+    #       3/2)  (Sqrt[1 - t^2] + 5  a  t  (-1 + t^2)  tE) + 
+    #      Sqrt[2]  eps  h  Lz^2  t  tE  (5  Sqrt[1 - t^2] - 
+    #         12  a  t  (-1 + t^2)  tE  (-5 + 
+    #            a  t  Sqrt[1 - t^2]  tE)) + 
+    #      2  Sqrt[h Lz^2 tE]  (Sqrt[1 - t^2] - 
+    #         4  a  t  (-1 + t^2)  tE  (-5 + 
+    #            3  a  t  Sqrt[1 - t^2]  tE))) - 
+    #   5  t  (1 + 
+    #      Sqrt[2]  eps  t  Sqrt[h Lz^2 tE])  (Sqrt[2]  eps  h  Lz^2 - 
+    #      4  a  Sqrt[1 - t^2]  Sqrt[
+    #       h Lz^2 tE])  (12  t^2  (1 + 
+    #         Sqrt[2] eps t Sqrt[h Lz^2 tE])^3 - (1 - t^2)  (1 - 
+    #         2  a  t  Sqrt[1 - t^2]  tE + 
+    #         Sqrt[2]  eps  t  Sqrt[
+    #          h Lz^2 tE])  (-4  a^2  t^2  (-1 + t^2)  tE^2 - 
+    #         8  a  t  Sqrt[1 - t^2]
+    #            tE  (1 + Sqrt[2]  eps  t  Sqrt[h Lz^2 tE]) - 
+    #         3  (1 + Sqrt[2] eps t Sqrt[h Lz^2 tE])^2))))/(2  Sqrt[
+    # h Lz^2 tE]  (1 + Sqrt[2] eps t Sqrt[h Lz^2 tE])^4  (1 - 
+    #   2 a t Sqrt[1 - t^2] tE + Sqrt[2] eps t Sqrt[h Lz^2 tE])^6);
+
+
+
+
+
+        # num = (3+4*xe-xe^2)*(1-xe)*(1-t^2)+ 12*t^2
+        # den = (1-2*a*tE*t*sqrt(1-t^2) + eps*sqrt(z)*t)^5
+
+        # dnumdE = (4*dxedE-2*dxedE*xe)*(1-xe)*(1-t^2)+ (3+4*xe-xe^2)*(-dxedE)*(1-t^2)
+        # ddendE = 5*(1-2*a*tE*t*sqrt(1-t^2) + eps*sqrt(z)*t)^4 * (-2*a*t*sqrt(1-t^2) + eps*0.5*dzdE/sqrt(z)*t)
+
+
+
+        # sum2 += (1.0-t^2)*(dnumdE*den-num*ddendE)/den^2 
+
+
         t = 1.0/nbK*(k-0.5)
-        xe = x_eps(tE,eps,z,t)
 
-        dxedtE = 2*ta*sqrt(1-t^2)/(1+eps*sqrt(z)*t) + 2*ta*tE*t*sqrt(1-t^2)*(-eps*t*0.5*dzdtE/sqrt(z))/(1+eps*sqrt(z)*t)^2
+        z = 2*h*tE*tLz^2
+        xe = 2*ta*tE*t*sqrt(1-t^2)/(1+eps*sqrt(z)*t)
 
-
-
-        # num = (1 - t^2) * [ (3 + 4 xe - xe^2)(1 - xe)(1-t^2) + 12 t^2 ]
-        # den = (1 - 2 ta tE t sqrt(1-t^2) + eps sqrt(z) t)^5
-
-        num = (1-t^2)*((3.0+4.0*xe-xe^2)*(1.0-xe)*(1-t^2)+12.0*t^2)
-        den = (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^5
-
-        dnum = (1-t^2)*((4*dxedtE-2*xe*dxedtE)*(1-xe)*(1-t^2) + (3+4*xe-xe^2)*(-dxedtE)*(1-t^2))
-        dden = 5 * (-2*ta*t*sqrt(1-t^2) + eps*t*(0.5*dzdtE/sqrt(z)) ) * (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^4
+        dzdE = 2*h*tLz^2
+        dxedE = 2*ta*t*sqrt(1-t^2)/(1+eps*sqrt(z)*t) - 2*ta*tE*t*sqrt(1-t^2)*(eps*0.5*dzdE/sqrt(z)*t)/(1+eps*sqrt(z)*t)^2
 
 
-        sum2 += (dnum*den-num*dden)/den^2 
+        num = (3+4*xe-xe^2)*(1-xe)*(1-t^2)+ 12*t^2
+        den = (1-2*ta*tE*t*sqrt(1-t^2) + eps*sqrt(z)*t)^5
+
+        dnumdE = (4*dxedE-2*dxedE*xe)*(1-xe)*(1-t^2)+  (3+4*xe-xe^2)*(-dxedE)*(1-t^2) 
+        ddendE = 5*(1-2*ta*tE*t*sqrt(1-t^2) + eps*sqrt(z)*t)^4 * (-2*ta*t*sqrt(1-t^2) + eps*0.5*dzdE/sqrt(z)*t)
+
+        sum2 += (1-t^2)*(dnumdE*den-num*ddendE)/den^2
+
+
+
+        # data[k] = (1.0-t^2)*(dnumdE*den-num*ddendE)/den^2 
     end 
 
     sum2 *= f0*tE^(5/2)*1.0/nbK
+
+    # plot ?
 
 
     # dF/dE = dF/dtE dtE/dE
@@ -207,8 +223,75 @@ function _dFdE_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
     sum = sum1 + sum2
     sum *= -(a+c)/(G*M)
 
+
+    # println((-(a+c)/(G*M)*sum2))
+
+    # pt = plot(data)
+
+    # savefig(pt,"test.png")
+
+
+
+
+
+    # # num 
+
+    # dE = 0.000000001
+
+  
+    
+    # tE = _tE(E+dE)
+    # tLz = _tLz(Lz)
+    # f0 = M/(G*M*(a+c))^(3/2)*(tc^2)/(2^(3/2)*pi^3*ta)
+    # z = 2*h*(tE)*tLz^2
+
+    # sump = 0.0
+    # for k=1:nbK
+    #     t = 1.0/nbK*(k-0.5)
+    #     xe = x_eps(tE,eps,z,t)
+
+    #     num = (1-t^2)*((3.0+4.0*xe-xe^2)*(1.0-xe)*(1-t^2)+12.0*t^2)
+    #     den = (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^5
+
+    #     sump += num/den 
+    # end 
+
+    # tE = _tE(E-dE)
+    # tLz = _tLz(Lz)
+    # f0 = M/(G*M*(a+c))^(3/2)*(tc^2)/(2^(3/2)*pi^3*ta)
+    # z = 2*h*(tE)*tLz^2
+
+    # summ = 0.0
+    # for k=1:nbK
+    #     t = 1.0/nbK*(k-0.5)
+    #     xe = x_eps(tE,eps,z,t)
+
+    #     num = (1-t^2)*((3.0+4.0*xe-xe^2)*(1.0-xe)*(1-t^2)+12.0*t^2)
+    #     den = (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^5
+
+    #     summ += num/den 
+    # end 
+
+
+    # sum = (sump-summ)/(2.0*dE)
+
+    # sum *= f0*tE^(5/2)*1.0/nbK
+
+
+
+
+
+    # println((sum))
+
+
+    
+
+
+
     return sum 
 end 
+
+
 
 
 function _dFdE(E::Float64, Lz::Float64, nbK::Int64=100)
@@ -228,8 +311,8 @@ function _dFdLz_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
     # dF/dtLz
     tE = _tE(E)
     tLz = _tLz(Lz)
-    f0 = M/(G*M*(a+c))^(3/2)*(tc^2)/(2^(3/2)*pi^3*ta)
-    z = 2*h*tE*tLz^2
+    f0 = M/(G*M*(a+c))^(3/2)*(tc^2)/(2.0^(3/2)*pi^3*ta)
+    z = 2.0*h*tE*tLz^2
 
    
     dzdtLz = 2*h*tE*2*tLz
@@ -247,11 +330,11 @@ function _dFdLz_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
         # num = (1 - t^2) * [ (3 + 4 xe - xe^2)(1 - xe)(1-t^2) + 12 t^2 ]
         # den = (1 - 2 ta tE t sqrt(1-t^2) + eps sqrt(z) t)^5
 
-        num = (1-t^2)*((3.0+4.0*xe-xe^2)*(1.0-xe)*(1-t^2)+12.0*t^2)
+        num = (1.0-t^2)*((3.0+4.0*xe-xe^2)*(1.0-xe)*(1.0-t^2)+12.0*t^2)
         den = (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^5
 
-        dnum = (1-t^2)*((4*dxedtLz-2*xe*dxedtLz)*(1-xe)*(1-t^2) + (3+4*xe-xe^2)*(-dxedtLz)*(1-t^2))
-        dden = 5 * ( eps*t*(0.5*dzdtLz/sqrt(z)) ) * (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^4
+        dnum = (1.0-t^2)*((4*dxedtLz-2*xe*dxedtLz)*(1-xe)*(1.0-t^2) + (3.0+4.0*xe-xe^2)*(-dxedtLz)*(1.0-t^2))
+        dden = 5.0 * ( eps*t*(0.5*dzdtLz/sqrt(z)) ) * (1.0-2.0*ta*tE*t*sqrt(1.0-t^2)+eps*sqrt(z)*t)^4
 
 
         sum2 += (dnum*den-num*dden)/den^2 
@@ -303,6 +386,8 @@ function test_dFdE(E::Float64, Lz::Float64, eps::Float64= 0.01, nbK::Int64=100)
     println("Num = ",dFdE_num)
     println("Th  = ",dFdE_th)
 
+    println("Num/Th =", dFdE_num/dFdE_th)
+
 
 end
 
@@ -317,6 +402,9 @@ function test_dFdLz(E::Float64, Lz::Float64, eps::Float64= 0.01, nbK::Int64=100)
 
     println("Num = ",dFdLz_num)
     println("Th  = ",dFdLz_th)
+
+    println("Num/Th =", dFdLz_num/dFdLz_th)
+
 
 
 end
@@ -381,3 +469,137 @@ end
 
 
 
+function test_dFdJ(Ju, Jv, Lz, dJ=0.001, nbK::Int64=100, nbu::Int64=100, nbv::Int64=100, eps::Float64=0.01)
+
+    E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+    dJudE, dJudI3, dJudLz = dJu(E,Lz,I3,nbu,eps)
+    dJvdE, dJvdI3, dJvdLz = dJv(E,Lz,I3,nbv)
+
+   detJ = dJudE*dJvdI3-dJudI3*dJvdE
+
+   Omegau = dJvdI3/detJ 
+   Omegav = -dJudI3/detJ 
+   Omegaz = (dJudI3*dJvdLz-dJudLz*dJvdI3)/detJ 
+
+
+    dFdE = _dFdE(E,Lz,nbK)
+    dFdLz = _dFdLz(E,Lz,nbK)
+
+    dFdJu = dFdE * Omegau # dF/dJu = dF/dE dE/dJu + dF/dI3 dI3/dJu + dF/dLz dLz/dJu
+    dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
+    dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
+
+    println("Theory: ",( dFdJu, dFdJv, dFdLz))
+
+    # Num 
+
+    # Ju
+    E_p, Lz_p, I3_p = E_Lz_I3_from_Ju_Lz_Jv(Ju+dJ,Lz,Jv)
+    E_m, Lz_m, I3_m = E_Lz_I3_from_Ju_Lz_Jv(Ju-dJ,Lz,Jv)
+
+    Fp = F(E_p,Lz_p,nbK)
+    Fm = F(E_m,Lz_m,nbK)
+
+    dFdJu = (Fp-Fm)/(2.0*dJ)
+
+     # Jv
+     E_p, Lz_p, I3_p = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv+dJ)
+     E_m, Lz_m, I3_m = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv-dJ)
+ 
+     Fp = F(E_p,Lz_p,nbK)
+     Fm = F(E_m,Lz_m,nbK)
+ 
+     dFdJv = (Fp-Fm)/(2.0*dJ)
+ 
+     # Lz
+     E_p, Lz_p, I3_p = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz+dJ,Jv)
+     E_m, Lz_m, I3_m = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz-dJ,Jv)
+ 
+     Fp = F(E_p,Lz_p,nbK)
+     Fm = F(E_m,Lz_m,nbK)
+ 
+     dFdLz = (Fp-Fm)/(2.0*dJ)
+ 
+     println("Num   : ",( dFdJu, dFdJv, dFdLz))
+
+end
+
+
+
+function test(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
+
+    dE = 0.000001
+
+    z = 2.0*h*E*Lz^2
+
+    sumD = 0.0
+
+    for k=1:nbK 
+
+        t = 1.0/nbK*(k-0.5)
+
+        z = 2*h*E*Lz^2
+        xe = 2*a*E*t*sqrt(1-t^2)/(1+eps*sqrt(z)*t)
+
+        dzdE = 2*h*Lz^2
+        dxedE = 2*a*t*sqrt(1-t^2)/(1+eps*sqrt(z)*t) - 2*a*E*t*sqrt(1-t^2)*(eps*0.5*dzdE/sqrt(z)*t)/(1+eps*sqrt(z)*t)^2
+
+
+        num = (3+4*xe-xe^2)*(1-xe)*(1-t^2)+ 12*t^2
+        den = (1-2*a*E*t*sqrt(1-t^2) + eps*sqrt(z)*t)^5
+
+        dnumdE = (4*dxedE-2*dxedE*xe)*(1-xe)*(1-t^2)+  (3+4*xe-xe^2)*(-dxedE)*(1-t^2) 
+        ddendE = 5*(1-2*a*E*t*sqrt(1-t^2) + eps*sqrt(z)*t)^4 * (-2*a*t*sqrt(1-t^2) + eps*0.5*dzdE/sqrt(z)*t)
+
+        sumD += (1-t^2)*(dnumdE*den-num*ddendE)/den^2
+
+    end
+
+    sumD *= 1.0/nbK
+
+    println(sumD)
+
+
+    # num 
+
+    sump = 0.0
+
+    for k=1:nbK 
+
+        t = 1.0/nbK*(k-0.5)
+
+        z = 2*h*(E+dE)*Lz^2
+        xe = 2*a*(E+dE)*t*sqrt(1-t^2)/(1+eps*sqrt(z)*t)
+
+        num = (3+4*xe-xe^2)*(1-xe)*(1-t^2)+ 12*t^2
+        den = (1-2*a*(E+dE)*t*sqrt(1-t^2) + eps*sqrt(z)*t)^5
+
+ 
+        sump += (1-t^2)*num/den 
+
+    end
+
+    sump *= 1.0/nbK
+
+    summ = 0.0
+
+    for k=1:nbK 
+
+        t = 1.0/nbK*(k-0.5)
+
+        z = 2*h*(E-dE)*Lz^2
+        xe = 2*a*(E-dE)*t*sqrt(1-t^2)/(1+eps*sqrt(z)*t)
+
+        num = (3+4*xe-xe^2)*(1-xe)*(1-t^2)+ 12*t^2
+        den = (1-2*a*(E-dE)*t*sqrt(1-t^2) + eps*sqrt(z)*t)^5
+
+ 
+        summ += (1-t^2)*num/den 
+
+    end
+
+    summ *= 1.0/nbK
+
+    println((sump-summ)/(2.0*dE))
+end

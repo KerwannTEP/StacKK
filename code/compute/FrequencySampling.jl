@@ -1,71 +1,72 @@
+using Pkg; Pkg.activate("LocalJuliaPackages")
+
+println("Nb threads = ",Threads.nthreads())
+
+
+
 include("../source/Main.jl")
 
 using HDF5
 
 
-const nbJ = 10
-const nbt = 100
+const nbJ = nbJ_default
+const nbt = nbt_default
 
-const Re_omega_max = 0.5
-const Re_omega_min = -0.5
+const Re_omega_max = 1.0
+const Re_omega_min = 0.0 # Frequency space symmetrical w.r.t. imaginary axis for non-rotation clusters
 
-const Im_omega_max = 0.5
-const Im_omega_min = 0.01
+const Im_omega_max = 2.0
+const Im_omega_min = 0.001
 
-const nbRe = 2
-const nbIm = 2
+const nbRe = 10
+const nbIm = 10
 
 const nbgrid = nbRe*nbIm
 
-const tab_omega_re_im = zeros(Float64, 2, nbgrid)
 const tab_absdet_Epq = zeros(Float64, nbgrid)
+const tab_argdet_Epq = zeros(Float64, nbgrid)
 
-function tab_omega_re_im!()
 
-    igrid = 1
-    for ire=1:nbRe 
-        re_omega = Re_omega_min + (Re_omega_max-Re_omega_min)/(nbRe-1)*(ire-1)
-        for iim=1:nbIm
-            im_omega = Im_omega_min + (Im_omega_max-Im_omega_min)/(nbIm-1)*(iim-1)
 
-            tab_omega_re_im[1,igrid] = re_omega
-            tab_omega_re_im[2,igrid] = im_omega
-            
-        
-        end
+function tab_det_omega()
+
+    tab_Mpq, tab_omega = ResponseMatrix_m_sampling(mmax,Re_omega_min,Re_omega_max,Im_omega_min,Im_omega_max,nbRe,nbIm,nbJ,nbt)
+
+    n0 = 0
+    if (mmax != 0)
+        n0 = 1
     end
 
-end
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(mmax) + 1
 
-@time tab_omega_re_im!()
+    nbp = nbl * nbn
 
-function tab_absdet_Epq!()
+
 
     for igrid=1:nbgrid 
 
-        re_omega = tab_omega_re_im[1,igrid] 
-        im_omega = tab_omega_re_im[2,igrid]
-
-        omega = re_omega + 1im*im_omega
-
-        tab_Mpq, tab_ln = ResponseMatrix_m(mmax,omega,nbJ,nbt)
-        size = length(tab_ln[:,1])
-        absdet = abs(det_Dielectric(tab_Mpq, size))
+        
+        detEpq = det_Dielectric(tab_Mpq[:,:,igrid], nbp)
+        absdet = abs(detEpq)
+        argdet = angle(detEpq)
 
         tab_absdet_Epq[igrid] = absdet 
+        tab_argdet_Epq[igrid] = argdet 
     end
 
 
-
+    return tab_absdet_Epq, tab_argdet_Epq, tab_omega
 
     
 end 
 
-@time tab_absdet_Epq!()
 
 namefile = "../../data/sampling_modes_staeckel_a_"*string(a)*"_m_"*string(mmax)*"_lmax_"*string(lmax)*"_nmax_"*string(nmax)*".hf5"
 
 function writefile!()
+
+    @time tab_absdet_Epq, tab_argdet_Epq, tab_omega = tab_det_omega()
 
     file = h5open(namefile,"w") # Opening the file
 
@@ -79,8 +80,9 @@ function writefile!()
     write(file, "im_omega_max", Im_omega_max)
     write(file, "im_omega_min", Im_omega_min)
 
-    write(file, "tab_omega", tab_omega_re_im)
+    write(file, "tab_omega_re_im", tab_omega)
     write(file, "tab_absdet", tab_absdet_Epq)
+    write(file, "tab_argdet", tab_argdet_Epq)
 
     write(file, "lmax", lmax)
     write(file, "m", mmax)
@@ -91,3 +93,5 @@ function writefile!()
 
     close(file)
 end
+
+@time writefile!()

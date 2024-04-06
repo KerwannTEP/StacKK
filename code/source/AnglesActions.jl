@@ -68,24 +68,24 @@ function _tpu(uEff::Float64, E::Float64, Lz::Float64, I3::Float64, u0::Float64, 
 
     # println((puSq(u0,E,Lz,I3),puSq(u1,E,Lz,I3)))
 
-    if (-pi/2 + cutoffEff < uEff < pi/2 - cutoffEff)
+    if (-0.5*PI + cutoffEff < uEff < 0.5*PI - cutoffEff)
         return sqrt(abs(puSq(u,E,Lz,I3)))/(tu*cos(uEff))
-    elseif (uEff <= -pi/2 + cutoffEff)
-        uEff_cutoff = -pi/2 + cutoffEff
+    elseif (uEff <= -0.5*PI + cutoffEff)
+        uEff_cutoff = -0.5*PI + cutoffEff
         u_cutoff = tu*sin(uEff_cutoff) + su
         tpu_cutoff = sqrt(abs(puSq(u_cutoff,E,Lz,I3)))/(tu*cos(uEff_cutoff))
         dpuSqdu = grad_u_puSq(u0,E,Lz)
         tpu_lim = sqrt(abs(dpuSqdu))/sqrt(abs(u1-u0))
         
-        return tpu_lim + (tpu_cutoff-tpu_lim)/cutoffEff * (uEff+pi/2)
+        return tpu_lim + (tpu_cutoff-tpu_lim)/cutoffEff * (uEff+0.5*PI)
     else
-        uEff_cutoff = pi/2 - cutoffEff
+        uEff_cutoff = 0.5*PI - cutoffEff
         u_cutoff = tu*sin(uEff_cutoff) + su
         tpu_cutoff = sqrt(abs(puSq(u_cutoff,E,Lz,I3)))/(tu*cos(uEff_cutoff))
         dpuSqdu = grad_u_puSq(u1,E,Lz)
         tpu_lim = sqrt(abs(dpuSqdu))/sqrt(abs(u1-u0))
         
-        return tpu_cutoff + (tpu_lim-tpu_cutoff)/cutoffEff * (uEff-(pi/2 - cutoffEff))
+        return tpu_cutoff + (tpu_lim-tpu_cutoff)/cutoffEff * (uEff-(0.5*PI - cutoffEff))
     end
 
 end
@@ -97,10 +97,18 @@ function grad_u_puSq(u::Float64, E::Float64, Lz::Float64)
     # # to avoid ratio of huge numbers as much as possible
     # # otherwise, we have NaN = Inf*0
 
-    term0 = 4*Delta^2*E*sinh(u)*cosh(u)
-    term1 = 4*Delta^2*sinh(u)*G*M/(c/cosh(u)+sqrt(c^2/cosh(u)^2+Delta^2))
-    term2 = Delta^2*G*M*(2*Delta^2*sinh(u)/sqrt(c^2/cosh(u)^2+Delta^2))/(c/cosh(u)+sqrt(c^2/cosh(u)^2+Delta^2))^2
-    term3 = 2*Lz^2/(sinh(u)^2*tanh(u))
+    sinhu = sinh(u)
+    coshu = cosh(u)
+
+    # term0 = 4.0*Delta^2*E*sinh(u)*cosh(u)
+    # term1 = 4.0*Delta^2*sinh(u)*G*M/(c/cosh(u)+sqrt(c^2/cosh(u)^2+Delta^2))
+    # term2 = Delta^2*G*M*(2.0*Delta^2*sinh(u)/sqrt(c^2/cosh(u)^2+Delta^2))/(c/cosh(u)+sqrt(c^2/cosh(u)^2+Delta^2))^2
+    # term3 = 2.0*Lz^2/(sinh(u)^2*tanh(u))
+
+    term0 = 4.0*Delta^2*E*sinhu*coshu
+    term1 = 4.0*Delta^2*sinhu*G*M/(c/coshu+sqrt(c^2/coshu^2+Delta^2))
+    term2 = Delta^2*G*M*(2.0*Delta^2*sinhu/sqrt(c^2/coshu^2+Delta^2))/(c/coshu+sqrt(c^2/coshu^2+Delta^2))^2
+    term3 = 2.0*Lz^2/(sinhu^2*tanh(u))
 
     return term0 + term1 - term2 + term3
 
@@ -150,7 +158,7 @@ end
 function _Ju(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100)
 
     u0, u1 = find_bounds_u(E,Lz,I3)
-    if (u0 != -1) # pv^2(pi/2) >= 0
+    if (u0 != -1.0) # pv^2(pi/2) >= 0
         
         sum = 0.0
 
@@ -163,7 +171,7 @@ function _Ju(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100)
 
         sum *= du 
 
-        return sum/pi
+        return sum*INV_PI
 
     else # no orbit
         return 0.0
@@ -192,10 +200,17 @@ function grad_v_pvSq(v::Float64, E::Float64, Lz::Float64)
     # # to avoid ratio of huge numbers as much as possible
     # # otherwise, we have NaN = Inf*0
 
-    term0 = 4*Delta^2*E*sin(v)*cos(v)
-    term1 = 4*Delta^2*sin(v)*cos(v)*G*M/(c+sqrt(c^2+Delta^2*cos(v)^2))
-    term2 = Delta^2*cos(v)^2*G*M*(-2*Delta^2*sin(v)*cos(v)/sqrt(c^2+Delta^2*cos(v)^2))/(c+sqrt(c^2+Delta^2*cos(v)^2))^2
-    term3 = 2*cos(v)*Lz^2/(sin(v)^3)
+    sinv, cosv = sincos(v)
+
+    # term0 = 4.0*Delta^2*E*sin(v)*cos(v)
+    # term1 = 4.0*Delta^2*sin(v)*cos(v)*G*M/(c+sqrt(c^2+Delta^2*cos(v)^2))
+    # term2 = Delta^2*cos(v)^2*G*M*(-2.0*Delta^2*sin(v)*cos(v)/sqrt(c^2+Delta^2*cos(v)^2))/(c+sqrt(c^2+Delta^2*cos(v)^2))^2
+    # term3 = 2.0*cos(v)*Lz^2/(sin(v)^3)
+
+    term0 = 4.0*Delta^2*E*sinv*cosv
+    term1 = 4.0*Delta^2*sinv*cosv*G*M/(c+sqrt(c^2+Delta^2*cosv^2))
+    term2 = Delta^2*cosv^2*G*M*(-2.0*Delta^2*sinv*cosv/sqrt(c^2+Delta^2*cosv^2))/(c+sqrt(c^2+Delta^2*cosv^2))^2
+    term3 = 2.0*cosv*Lz^2/(sinv^3)
 
     return term0 + term1 + term2 + term3
 
@@ -210,24 +225,24 @@ function _tpv(vEff::Float64, E::Float64, Lz::Float64, I3::Float64, v0::Float64, 
     v = tv*sin(vEff) + sv
 
 
-    if (-pi/2 + cutoffEff < vEff < pi/2 - cutoffEff)
+    if (-0.5*PI + cutoffEff < vEff < 0.5*PI - cutoffEff)
         return sqrt(abs(pvSq(v,E,Lz,I3)))/(tv*cos(vEff))
-    elseif (vEff <= -pi/2 + cutoffEff)
-        vEff_cutoff = -pi/2 + cutoffEff
+    elseif (vEff <= -0.5*PI + cutoffEff)
+        vEff_cutoff = -0.5*PI + cutoffEff
         v_cutoff = tv*sin(vEff_cutoff) + sv
         tpv_cutoff = sqrt(abs(pvSq(v_cutoff,E,Lz,I3)))/(tv*cos(vEff_cutoff))
         dpvSqdv = grad_v_pvSq(v0,E,Lz)
         tpv_lim = sqrt(abs(dpvSqdv))/sqrt(abs(v1-v0))
         
-        return tpv_lim + (tpv_cutoff-tpv_lim)/cutoffEff * (vEff+pi/2)
+        return tpv_lim + (tpv_cutoff-tpv_lim)/cutoffEff * (vEff+0.5*PI)
     else
-        vEff_cutoff = pi/2 - cutoffEff
+        vEff_cutoff = 0.5*PI - cutoffEff
         v_cutoff = tv*sin(vEff_cutoff) + sv
         tpv_cutoff = sqrt(abs(pvSq(v_cutoff,E,Lz,I3)))/(tv*cos(vEff_cutoff))
         dpvSqdv = grad_v_pvSq(v1,E,Lz)
         tpv_lim = sqrt(abs(dpvSqdv))/sqrt(abs(v1-v0))
         
-        return tpv_cutoff + (tpv_lim-tpv_cutoff)/cutoffEff * (vEff-(pi/2 - cutoffEff))
+        return tpv_cutoff + (tpv_lim-tpv_cutoff)/cutoffEff * (vEff-(0.5*PI - cutoffEff))
     end
 
 end
@@ -235,13 +250,13 @@ end
 # special case for Lz=0 ?
 function find_bounds_v(E::Float64, Lz::Float64, I3::Float64)
 
-    vm = pi/2
+    vm = 0.5*PI
     if (2.0*Delta^2*(E+I3) <= Lz^2) 
         return nothing 
     else
 
-        v0 = bisection( v->pvSq(v,E,Lz,I3),0.0,pi/2.0)
-        v1 = pi-v0 
+        v0 = bisection( v->pvSq(v,E,Lz,I3),0.0,0.5*PI)
+        v1 = PI-v0 
 
         return v0, v1
     end
@@ -263,7 +278,7 @@ function _Jv(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=100)
 
         sum *= dv 
 
-        return sum/pi
+        return sum*INV_PI
 
     else # no orbit
         return 0.0
@@ -293,7 +308,7 @@ function dJudEI3(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100)
  
 
     for i=1:nbu 
-        theta = -pi/2 + pi/nbu*(i-0.5)
+        theta = -0.5*PI + PI/nbu*(i-0.5)
         u = tu*sin(theta) + su
         tpu = _tpu(theta,E,Lz,I3,u0,u1)
 
@@ -305,8 +320,8 @@ function dJudEI3(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100)
 
     end 
 
-    djude *= 1/nbu  # divide by pi
-    djudi3 *= -1/nbu # divide by pi
+    djude *= 1.0/nbu  # divide by pi
+    djudi3 *= -1.0/nbu # divide by pi
 
 
     return djude, djudi3
@@ -330,12 +345,12 @@ function dJudLz(E::Float64, Lz::Float64, I3::Float64, eps::Float64=0.01, nbu::In
     # If not, use tmin_eff = log(pi/(nbu))
     tmin = 0.0
     if (-2.0*Delta^2*(_E0+I3) > 0)
-        tmin = log(eps) - log(u1) + 3*log(abs(Lz)) - 1.5*log(abs(-2.0*Delta^2*(_E0+I3)))
+        tmin = log(eps) - log(u1) + 3.0*log(abs(Lz)) - 1.5*log(abs(-2.0*Delta^2*(_E0+I3)))
     else
-        tmin = log(pi/nbu)
+        tmin = log(PI/nbu)
     end
-    tmin_eff = min(tmin,log(pi/nbu)) # Useful for large tmin (I3 large of |Lz| large)
-    tmax = log(pi)
+    tmin_eff = min(tmin,log(PI/nbu)) # Useful for large tmin (I3 large of |Lz| large)
+    tmax = log(PI)
 
     t = tmin_eff
     dt = (tmax-tmin_eff)/nbu
@@ -370,7 +385,7 @@ function dJudLz(E::Float64, Lz::Float64, I3::Float64, eps::Float64=0.01, nbu::In
 
         # Step 1
         t = tmin_eff + dt*(it-0.5)
-        theta = -pi/2 + exp(t)
+        theta = -0.5*PI + exp(t)
         u = tu*sin(theta) + su
         tpu = _tpu(theta,E,Lz,I3,u0,u1)
 
@@ -387,7 +402,7 @@ function dJudLz(E::Float64, Lz::Float64, I3::Float64, eps::Float64=0.01, nbu::In
 
     # RK4 ?
     # Then at theta=-pi/2, use Taylor expansion limit
-    theta = -pi/2+dtheta/2.0
+    theta = -0.5*PI+0.5*dtheta 
     u = tu*sin(theta) + su
     tpu = _tpu(theta,E,Lz,I3,u0,u1)
     djudlz += -dtheta*Lz/(tpu*sinh(u)^2)
@@ -423,7 +438,7 @@ function dJv(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=100)
     djvdlz = 0.0
 
     for i=1:nbv 
-        theta = -pi/2 + pi/nbv*(i-0.5)
+        theta = -0.5*PI + PI/nbv*(i-0.5)
         v = tv*sin(theta) + sv
         tpv = _tpv(theta,E,Lz,I3,v0,v1)
 
@@ -432,11 +447,40 @@ function dJv(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=100)
         djvdlz += Lz/(tpv*sin(v)^2)
     end 
 
-    djvde *= 1/nbv # divide by pi
-    djvdi3 *= 1/nbv # divide by pi
-    djvdlz *= -1/nbv # divide by pi
+    djvde *= 1.0/nbv # divide by pi
+    djvdi3 *= 1.0/nbv # divide by pi
+    djvdlz *= -1.0/nbv # divide by pi
 
     return djvde, djvdi3, djvdlz
+end
+
+
+# Semi-log here ?
+# Not needed I guess?
+function dJvdEI3(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=100)
+
+
+    v0, v1 = find_bounds_v(E,Lz,I3)
+
+    sv = 0.5*(v0+v1)
+    tv = 0.5*(v1-v0)
+
+    djvde = 0.0
+    djvdi3 = 0.0
+
+    for i=1:nbv 
+        theta = -0.5*PI + PI/nbv*(i-0.5)
+        v = tv*sin(theta) + sv
+        tpv = _tpv(theta,E,Lz,I3,v0,v1)
+
+        djvde += Delta^2 * sin(v)^2/tpv
+        djvdi3 += Delta^2/tpv
+    end 
+
+    djvde *= 1.0/nbv # divide by pi
+    djvdi3 *= 1.0/nbv # divide by pi
+
+    return djvde, djvdi3
 end
 
 # MANUAL INVERSE 3 By 3 MATRIX 
@@ -458,7 +502,7 @@ function inverse_3_by_3(matrix::Matrix{Float64})
     h = matrix[3,2]
     i = matrix[3,3]
 
-    determinant = a*(e*i-f*h) - b*(d*i-f*g)+c*(d*h-e*g)
+    determinant = a*(e*i-f*h) - b*(d*i-f*g) + c*(d*h-e*g)
 
     inverse = zeros(Float64, 3, 3)
 
@@ -573,10 +617,58 @@ function frequency_matrix_test(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=
     dI3dJv = dJudE/detJ 
     dI3dLz = (dJudLz*dJvdE-dJudE*dJvdLz)/detJ
 
+    println((Omega_u, Omega_v, Omega_z))
+
 
     return Omega_u, Omega_v, Omega_z, dI3dJu, dI3dJv, dI3dLz
 
 end
+
+function frequency_test(Ju, Jv, Lz, nbu::Int64=100000, nbv::Int64=100000, eps::Float64=0.001, dJ=0.0001)
+
+    E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+    dJudE, dJudI3, dJudLz = dJu(E,Lz,I3,nbu,eps)
+    dJvdE, dJvdI3, dJvdLz = dJv(E,Lz,I3,nbv)
+
+   detJ = dJudE*dJvdI3-dJudI3*dJvdE
+
+   Omega_u = dJvdI3/detJ 
+   Omega_v = -dJudI3/detJ 
+   Omega_z = (dJudI3*dJvdLz-dJudLz*dJvdI3)/detJ 
+
+
+   # num 
+
+   # Omegau = dEdJu 
+
+   E_p, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju+dJ,Lz,Jv)
+   E_m, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju-dJ,Lz,Jv)
+
+   Omega_u_num  = (E_p-E_m)/(2.0*dJ)
+
+    # Omegav = dEdJv
+
+    E_p, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv+dJ)
+    E_m, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv-dJ)
+
+    Omega_v_num  = (E_p-E_m)/(2.0*dJ)
+
+     # Omegaz = dEdLz
+
+     E_p, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz+dJ,Jv)
+     E_m, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz-dJ,Jv)
+
+     Omega_z_num  = (E_p-E_m)/(2.0*dJ)
+
+     println((Omega_u, Omega_v, Omega_z))
+     println((Omega_u_num, Omega_v_num, Omega_z_num))
+end
+
+
+
+
+
 
 #
 # Shell orbit limit
@@ -586,16 +678,16 @@ end
 function Ubar(u::Float64, Lz::Float64)
 
     return cosh(u)^2*(-G*M)/(c + sqrt(c^2 + (a^2 - c^2) *cosh(u)^2)) + 
-    Lz^2/(2 * (a^2 - c^2) *sinh(u)^2)
+    Lz^2/(2.0 * (a^2 - c^2) *sinh(u)^2)
 
 end
 
 function d2Ubardu2(u::Float64, Lz::Float64)
 
-    num1 = G *M* (4 *(a^2 + c^2) *cosh(2 *u) + (a - c)* (a + c) *(3 + cosh(4 *u)))
-    den1 = 2* sqrt(2)* (a^2 + c^2 + (a - c)* (a + c) *cosh(2* u))^(3.0/2)
+    num1 = G *M* (4.0 *(a^2 + c^2) *cosh(2 *u) + (a - c)* (a + c) *(3.0 + cosh(4.0 *u)))
+    den1 = 2.0* sqrt(2.0)* (a^2 + c^2 + (a - c)* (a + c) *cosh(2* u))^(1.5)
 
-    num2 = Lz^2* (2 + cosh(2 *u))* 1/sinh(u)^4
+    num2 = Lz^2* (2.0 + cosh(2.0 *u))* 1.0/sinh(u)^4
     den2 = a^2 - c^2
 
 
@@ -671,8 +763,8 @@ function test_thetau_thetav(E::Float64, Lz::Float64, I3::Float64, nbt::Int64=100
     tv = 0.5*(v1-v0)
 
 
-    tab_uEff = [-pi/2 + pi*i/(nbt) for i=0:nbt]
-    tab_vEff = [-pi/2 + pi*i/(nbt) for i=0:nbt]
+    tab_uEff = [-0.5*PI + PI*i/(nbt) for i=0:nbt]
+    tab_vEff = [-0.5*PI + PI*i/(nbt) for i=0:nbt]
 
     tab_uEff_v_Eff = zeros(Float64, (nbt+1)^2, 2)
 
@@ -717,7 +809,7 @@ function test_thetau_thetav(E::Float64, Lz::Float64, I3::Float64, nbt::Int64=100
 
     for iu=1:nbt
 
-        uEff = -pi/2 + pi*(iu-0.5)/(nbt) # midpoint integration 
+        uEff = -0.5*PI + PI*(iu-0.5)/(nbt) # midpoint integration 
         u = tu*sin(uEff) + su
         tpu = _tpu(uEff,E,Lz,I3,u0,u1)
 
@@ -736,7 +828,7 @@ function test_thetau_thetav(E::Float64, Lz::Float64, I3::Float64, nbt::Int64=100
 
     for iv=1:nbt
 
-        vEff = -pi/2 + pi*(iv-0.5)/(nbt) # midpoint integration 
+        vEff = -0.5*PI + PI*(iv-0.5)/(nbt) # midpoint integration 
         v = tv*sin(vEff) + sv
         tpv = _tpv(vEff,E,Lz,I3,v0,v1)
 
