@@ -4,47 +4,47 @@
 
 using PolynomialRoots
 
-function KroneckerDelta(i::Int64, j::Int64)
-    if (i==j)
-        return 1
-    else
-        return 0
-    end
-end
+# function KroneckerDelta(i::Int64, j::Int64)
+#     if (i==j)
+#         return 1
+#     else
+#         return 0
+#     end
+# end
 
-function _ri(i::Int64)
+# function _ri(i::Int64)
 
-    return -KroneckerDelta(1,i)-KroneckerDelta(2,i)+6*KroneckerDelta(3,i)-12*KroneckerDelta(4,i)+12*KroneckerDelta(5,i)
-end
+#     return -KroneckerDelta(1,i)-KroneckerDelta(2,i)+6*KroneckerDelta(3,i)-12*KroneckerDelta(4,i)+12*KroneckerDelta(5,i)
+# end
 
-function _sigmai(i::Int64)
+# function _sigmai(i::Int64)
 
-    return 1+KroneckerDelta(1,i)+2*KroneckerDelta(2,i)+3*KroneckerDelta(3,i)+4*(KroneckerDelta(4,i)+KroneckerDelta(5,i))
-end
+#     return 1+KroneckerDelta(1,i)+2*KroneckerDelta(2,i)+3*KroneckerDelta(3,i)+4*(KroneckerDelta(4,i)+KroneckerDelta(5,i))
+# end
 
-function w_eps(v::Float64, eps::Float64, z::Float64)
+# function w_eps(v::Float64, eps::Float64, z::Float64)
 
-    return v^2+2*eps*sqrt(z)*v+1.0
-end 
+#     return v^2+2*eps*sqrt(z)*v+1.0
+# end 
 
-function q_eps(v::Float64, eps::Float64, z::Float64, tE::Float64)
+# function q_eps(v::Float64, eps::Float64, z::Float64, tE::Float64)
 
-    return v^4 + 2.0*(eps*sqrt(z)+2*ta*tE)*v^3+2.0*v^2+2.0*(eps*sqrt(z)-2.0*ta*tE)*v + 1.0
-end
+#     return v^4 + 2.0*(eps*sqrt(z)+2*ta*tE)*v^3+2.0*v^2+2.0*(eps*sqrt(z)-2.0*ta*tE)*v + 1.0
+# end
 
-function alpha_w(eps::Float64, z::Float64)
+# function alpha_w(eps::Float64, z::Float64)
 
-    solutions = roots([1.0, 2.0*eps*sqrt(z), 1.0])
+#     solutions = roots([1.0, 2.0*eps*sqrt(z), 1.0])
 
-    return solutions
-end
+#     return solutions
+# end
 
-function beta_q(eps::Float64, z::Float64, tE::Float64)
+# function beta_q(eps::Float64, z::Float64, tE::Float64)
 
-    solutions = roots([1.0, 2.0*(eps*sqrt(z)-2.0*ta*tE), 2.0, 2.0*(eps*sqrt(z)+2.0*ta*tE), 1.0])
+#     solutions = roots([1.0, 2.0*(eps*sqrt(z)-2.0*ta*tE), 2.0, 2.0*(eps*sqrt(z)+2.0*ta*tE), 1.0])
 
-    return solutions 
-end
+#     return solutions 
+# end
 
 function x_eps(tE::Float64, eps::Float64, z::Float64, t::Float64)
 
@@ -55,7 +55,7 @@ end
 # For now, use the integral definition
 # Batsleer & Dejonghe (1993)
 # https://ui.adsabs.harvard.edu/abs/1993A%26A...271..104B/abstract
-function F_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
+function F_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=nbK_default)
 
     tE = _tE(E)
     tLz = _tLz(Lz)
@@ -86,7 +86,7 @@ end
 
 
 
-function F_actions(Ju::Float64, Jv::Float64, Lz::Float64, nbK::Int64=100)
+function F_actions(Ju::Float64, Jv::Float64, Lz::Float64, nbK::Int64=nbK_default)
 
     E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
 
@@ -107,7 +107,7 @@ using Plots
 # For now, use the integral definition
 # Batsleer & Dejonghe (1993)
 # https://ui.adsabs.harvard.edu/abs/1993A%26A...271..104B/abstract
-function _dFdE_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
+function _dFdE_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=nbK_default)
 
 
     # dF/dtE
@@ -294,7 +294,7 @@ end
 
 
 
-function _dFdE(E::Float64, Lz::Float64, nbK::Int64=100)
+function _dFdE(E::Float64, Lz::Float64, nbK::Int64=nbK_default)
 
     return _dFdE_eps(-1.0,E,Lz,nbK) + _dFdE_eps(1.0,E,Lz,nbK)
 
@@ -305,7 +305,7 @@ end
 # For now, use the integral definition
 # Batsleer & Dejonghe (1993)
 # https://ui.adsabs.harvard.edu/abs/1993A%26A...271..104B/abstract
-function _dFdLz_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
+function _dFdLz_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=nbK_default)
 
 
     # dF/dtLz
@@ -352,7 +352,7 @@ function _dFdLz_eps(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
     return sum2
 end 
 
-function _dFdLz(E::Float64, Lz::Float64, nbK::Int64=100)
+function _dFdLz(E::Float64, Lz::Float64, nbK::Int64=nbK_default)
 
     return _dFdLz_eps(-1.0,E,Lz,nbK) + _dFdLz_eps(1.0,E,Lz,nbK)
 
@@ -602,4 +602,41 @@ function test(eps::Float64, E::Float64, Lz::Float64, nbK::Int64=100)
     summ *= 1.0/nbK
 
     println((sump-summ)/(2.0*dE))
+end
+
+
+function rho_from_F_test(u::Float64, v::Float64, nbE::Int64=100, nbv::Int64=100, nbK::Int64=100)
+
+    lambda, nu = lambda_nu_from_u_v(u,v)
+    R, z = R_z_from_lambda_nu(lambda,nu)
+    psiRz = psi(lambda,nu)
+    rhoRz = rho(lambda,nu)
+
+    # Exact expression
+    println("rho theory = ",rhoRz)
+
+    # Exact with R,z 
+    num = (a^2+c^2)*R^2 + 2*a^2*z^2 + 2*a^2*c^2+a^4+3*a^2*sqrt(a^2*c^2+c^2*R^2+a^2*z^2)
+    den = (a^2*c^2+c^2*R^2+a^2*z^2)^(3/2)*(R^2+z^2+a^2+c^2+2*sqrt(a^2*c^2+c^2*R^2+a^2*z^2))^(3/2)
+    println("rho Rz the = ",M*c^2/(4*pi)*num/den)
+
+    # Integration over F(E,Lz)
+    sum = 0.0
+
+    for iE=1:nbE 
+        E = psiRz + (0-psiRz)/nbE*(iE-0.5)
+
+        for iv=1:nbv 
+            vphi = sqrt(2.0*(E-psiRz))/nbv*(iv-0.5)
+            Lz = R*vphi 
+
+            Ftot = F(E,Lz,nbK)
+
+            sum += Ftot*sqrt(2.0*(E-psiRz))/nbv*(0-psiRz)/nbE
+        end
+    end
+
+    sum *=4.0*pi 
+
+    println("rho integr = ",sum)
 end

@@ -21,6 +21,10 @@ const Jumax = 5.0
 const Jvmax = 5.0
 const Lzmax = 5.0
 
+# const Jumax = 10.0
+# const Jvmax = 10.0
+# const Lzmax = 10.0
+
 const cutoffEff = 0.01 # Effective anomaly cutoff precision
 
 const INV_PI = 1.0/pi

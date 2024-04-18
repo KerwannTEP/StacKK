@@ -39,12 +39,12 @@ function E_shell(Lz::Float64, I3::Float64)
 
    
 
-    # println((Lz,I3,b0,dUeffdu(b0,Lz,I3),b1,dUeffdu(b1,Lz,I3)))
+    # println("bbbb",(Lz,I3,b0,dUeffdu(b0,Lz,I3),b1,dUeffdu(b1,Lz,I3)))
 
     us = bisection(u->dUeffdu(u,Lz,I3),b0,b1)
     Es = Ueff(us,Lz,I3)
 
-    # println((us,Es))
+    # println("blal",(us,Es,dUeffdu(us,Lz,I3)))
 
     return Es, us 
 end
@@ -123,6 +123,8 @@ function find_bounds_u(E::Float64, Lz::Float64, I3::Float64)
 
     Es, us = E_shell(Lz,I3)
 
+    # println("sssss:",(E,Es,us))
+# 
     # println("us=",us)
     # println("Lz/sinh^2=",Lz/sinh(us)^2)
 
@@ -155,9 +157,10 @@ end
 
 
 
-function _Ju(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100)
+function _Ju(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=nbu_default)
 
     u0, u1 = find_bounds_u(E,Lz,I3)
+    # println("(u0,u1)=",(u0,u1))
     if (u0 != -1.0) # pv^2(pi/2) >= 0
         
         sum = 0.0
@@ -263,7 +266,7 @@ function find_bounds_v(E::Float64, Lz::Float64, I3::Float64)
 
 end
 
-function _Jv(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=100)
+function _Jv(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=nbv_default)
 
     if ((2.0*Delta^2*(E+I3) >= Lz^2)) # pv^2(pi/2) >= 0
         v0, v1 = find_bounds_v(E,Lz,I3)
@@ -292,7 +295,7 @@ end
 
 # Semi-log here?
 # RK4
-function dJudEI3(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100)
+function dJudEI3(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=nbu_default)
     # dpudE = Delta^2 * sinh(u)^2/pu
 
     u0, u1 = find_bounds_u(E,Lz,I3)
@@ -331,7 +334,7 @@ end
 
 # Semi-log
 # Do this only for dJudLz
-function dJudLz(E::Float64, Lz::Float64, I3::Float64, eps::Float64=0.01, nbu::Int64=100)
+function dJudLz(E::Float64, Lz::Float64, I3::Float64, eps::Float64=epsLz, nbu::Int64=nbu_default)
 
     u0, u1 = find_bounds_u(E,Lz,I3)
 
@@ -414,7 +417,7 @@ function dJudLz(E::Float64, Lz::Float64, I3::Float64, eps::Float64=0.01, nbu::In
     return djudlz
 end
 
-function dJu(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100, eps::Float64=0.01)
+function dJu(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=nbu_default, eps::Float64=epsLz)
 
     djude, djudi3 = dJudEI3(E,Lz,I3,nbu)
     djudlz = dJudLz(E,Lz,I3,eps,nbu)
@@ -425,7 +428,7 @@ end
 
 # Semi-log here ?
 # Not needed I guess?
-function dJv(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=100)
+function dJv(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=nbv_default)
 
 
     v0, v1 = find_bounds_v(E,Lz,I3)
@@ -457,7 +460,7 @@ end
 
 # Semi-log here ?
 # Not needed I guess?
-function dJvdEI3(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=100)
+function dJvdEI3(E::Float64, Lz::Float64, I3::Float64, nbv::Int64=nbv_default)
 
 
     v0, v1 = find_bounds_v(E,Lz,I3)
@@ -524,7 +527,7 @@ end
 
 # There might a better way to do this 
 # optimize this
-function frequency_matrix(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100, nbv::Int64=100, eps::Float64=0.01)
+function frequency_matrix(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=nbu_default, nbv::Int64=nbv_default, eps::Float64=epsLz)
 
  
         dJudE, dJudI3, dJudLz = dJu(E,Lz,I3,nbu,eps)
@@ -552,7 +555,7 @@ function frequency_matrix(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100, 
 end
 
 
-function fill_grad_frequency_matrix!(matrix_grad::Matrix{Float64}, matrix_freq::Matrix{Float64},  E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100, nbv::Int64=100, eps::Float64=0.01)
+function fill_grad_frequency_matrix!(matrix_grad::Matrix{Float64}, matrix_freq::Matrix{Float64},  E::Float64, Lz::Float64, I3::Float64, nbu::Int64=nbu_default, nbv::Int64=nbv_default, eps::Float64=epsLz)
 
  
     dJudE, dJudI3, dJudLz = dJu(E,Lz,I3,nbu,eps)
@@ -602,7 +605,7 @@ function fill_grad_frequency_matrix!(matrix_grad::Matrix{Float64}, matrix_freq::
 
 end
 
-function frequency_matrix_test(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=100, nbv::Int64=100, eps::Float64=0.01)
+function frequency_matrix_test(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=nbu_default, nbv::Int64=100, eps::Float64=0.01)
 
      dJudE, dJudI3, dJudLz = dJu(E,Lz,I3,nbu,eps)
      dJvdE, dJvdI3, dJvdLz = dJv(E,Lz,I3,nbv)
@@ -708,13 +711,15 @@ function bisection(fun::Function, xl::Float64, xu::Float64, tolx::Float64=1.0*10
     #####
     fl, fu = fun(xl), fun(xu) # Evaluating the function on the bracket
     #####
-    if (abs(fl) <= tolf) # We have already found a solution on the left bracket
-        return xl # Returning the left bracket
-    end
-    #####
-    if (abs(fu) <= tolf) # We have already found a solution on the right bracket
-        return xu # Returning the right bracket
-    end
+
+    # if (abs(fl) <= tolf) # We have already found a solution on the left bracket
+    #     return xl # Returning the left bracket
+    # end
+    # #####
+    # if (abs(fu) <= tolf) # We have already found a solution on the right bracket
+    #     return xu # Returning the right bracket
+    # end
+
     #####
     @assert fl*fu < 0.0 "bisection: NOT A BRACKET"
     #####
@@ -870,7 +875,326 @@ function test_thetau_thetav(E::Float64, Lz::Float64, I3::Float64, nbt::Int64=100
 
 
 end
+
+
+using HDF5
+    
+function get_alpha1_alpha2_alpha3MinusPhi(l::Int64, n::Int64, k1::Int64, k2::Int64, k3::Int64, Ju::Float64, Jv::Float64, Lz::Float64, nbt::Int64=nbt_default)
+
+
+    m = k3
+    tab_tu = zeros(Float64, nbt)
+    tab_tv = zeros(Float64, nbt)
+
+    tab_u = zeros(Float64, nbt)
+    tab_v = zeros(Float64, nbt)
+
+    tab_dpudJu = zeros(Float64, nbt)
+    tab_dpudJv = zeros(Float64, nbt)
+    tab_dpudLz = zeros(Float64, nbt)
+
+    tab_dpvdJu = zeros(Float64, nbt)
+    tab_dpvdJv = zeros(Float64, nbt)
+    tab_dpvdLz = zeros(Float64, nbt)
+
+    E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+    u0, u1 = find_bounds_u(E,Lz,I3)
+    v0, v1 = find_bounds_v(E,Lz,I3)
+
+    su = 0.5*(u0+u1)
+    tu = 0.5*(u1-u0)
+
+    sv = 0.5*(v0+v1)
+    tv = 0.5*(v1-v0)
+
+    freq_matrix = zeros(Float64, 3, 3)
+    grad_matrix = zeros(Float64, 3, 3)
+
+    fill_grad_frequency_matrix!(grad_matrix,freq_matrix,E,Lz,I3)
+
     
 
-            
 
+    sumJu = 0.0
+    sumJv = 0.0
+    sumLz = 0.0
+
+    for iu=1:nbt 
+
+        uEff = -pi/2 + pi/nbt*(iu-0.5)
+        tab_tu[iu] = uEff 
+        u = tu*sin(uEff) + su
+        tab_u[iu] = u
+        tpu = _tpu(uEff,E,Lz,I3,u0,u1)
+
+        dpudE = Delta^2*sinh(u)^2/tpu
+        dpudI3 = -Delta^2/tpu
+        dpudLz = -Lz/(tpu*sinh(u)^2)
+
+        dpudJu = freq_matrix[1,1]*dpudE + freq_matrix[2,1]*dpudI3
+        dpudJv = freq_matrix[1,2]*dpudE + freq_matrix[2,2]*dpudI3
+        dpudLz = freq_matrix[1,3]*dpudE + freq_matrix[2,3]*dpudI3 + dpudLz
+
+        if (iu == 1)
+
+            sumJu += 0.5*pi/nbt*dpudJu
+            sumJv += 0.5*pi/nbt*dpudJv
+            sumLz += 0.5*pi/nbt*dpudLz
+        else
+            sumJu += pi/nbt*dpudJu
+            sumJv += pi/nbt*dpudJv
+            sumLz += pi/nbt*dpudLz
+        end
+
+        tab_dpudJu[iu] = sumJu
+        tab_dpudJv[iu] = sumJv
+        tab_dpudLz[iu] = sumLz 
+    end
+
+    sumJu = 0.0
+    sumJv = 0.0
+    sumLz = 0.0
+
+    for iv=1:nbt 
+
+        vEff = -pi/2 + pi/nbt*(iv-0.5)
+        tab_tv[iv] = vEff 
+        v = tv*sin(vEff) + sv
+        tab_v[iv] = v
+        tpv = _tpv(vEff,E,Lz,I3,v0,v1)
+
+        dpvdE = Delta^2*sin(v)^2/tpv
+        dpvdI3 = Delta^2/tpv 
+        dpvdLz = -Lz/(tpv*sin(v)^2)
+  
+        dpvdJu = freq_matrix[1,1]*dpvdE + freq_matrix[2,1]*dpvdI3
+        dpvdJv = freq_matrix[1,2]*dpvdE + freq_matrix[2,2]*dpvdI3
+        dpvdLz = freq_matrix[1,3]*dpvdE + freq_matrix[2,3]*dpvdI3 + dpvdLz
+
+        if (iv == 1)
+
+            sumJu += 0.5*pi/nbt*dpvdJu
+            sumJv += 0.5*pi/nbt*dpvdJv
+            sumLz += 0.5*pi/nbt*dpvdLz
+        else
+            sumJu += pi/nbt*dpvdJu
+            sumJv += pi/nbt*dpvdJv
+            sumLz += pi/nbt*dpvdLz
+        end
+
+        tab_dpvdJu[iv] = sumJu
+        tab_dpvdJv[iv] = sumJv
+        tab_dpvdLz[iv] = sumLz 
+    end
+
+
+
+    tab_bu = zeros(Float64, 2*nbt)
+    tab_bv = zeros(Float64, 2*nbt)
+    tab_bu_bv = zeros(Float64, (2*nbt)^2, 2)
+
+    tab_theta_u = zeros(Float64, (2*nbt)^2)
+    tab_theta_v = zeros(Float64, (2*nbt)^2)
+    tab_theta_phi_Minus_phi = zeros(Float64, (2*nbt)^2)
+
+    tab_alpha = zeros(Float64, (2*nbt)^2)
+    tab_beta = zeros(Float64, (2*nbt)^2)
+
+    tab_alpha_u = zeros(Float64, 2*nbt)
+    tab_beta_v = zeros(Float64, 2*nbt)
+
+    tab_f = zeros(Float64,(2*nbt)^2, 2)
+
+    index = 1
+
+    for iu=1:2*nbt
+        if (iu <= nbt)
+            bu = tab_u[iu]
+            index_u = iu
+            
+        else 
+            bu = 2*u1-tab_u[2*nbt-iu+1]
+            index_u = 2*nbt-iu+1
+        end
+        tab_bu[iu] = bu
+
+
+        for iv=1:2*nbt
+
+            if (iu <= nbt)
+                bu = tab_u[iu]
+                # index_u = iu
+
+                if (iv <= nbt)
+                    bv = tab_v[iv]
+                    # index_v = iv
+
+                    theta_u = tab_dpudJu[iu] + tab_dpvdJu[iv]
+                    theta_v = tab_dpudJv[iu] + tab_dpvdJv[iv]
+                   
+                    tab_theta_u[index] = theta_u
+                    tab_theta_v[index] = theta_v
+
+                    theta_phiMinusPhi  = tab_dpudLz[iu] + tab_dpvdLz[iv]
+                    tab_theta_phi_Minus_phi[index] = theta_phiMinusPhi
+
+                    tab_alpha[index] = k1*tab_dpudJu[iu] + k2*tab_dpudJv[iu] + k3*tab_dpudLz[iu]
+                    tab_beta[index] = k1*tab_dpvdJu[iv] + k2*tab_dpvdJv[iv] + k3*tab_dpvdLz[iv]
+
+                    tab_alpha_u[iu] = k1*tab_dpudJu[iu] + k2*tab_dpudJv[iu] + k3*tab_dpudLz[iu]
+                    tab_beta_v[iv] = k1*tab_dpvdJu[iv] + k2*tab_dpvdJv[iv] + k3*tab_dpvdLz[iv]
+
+
+                    tab_bu_bv[index, 1], tab_bu_bv[index, 2]= bu, bv
+
+                    u = tab_u[iu]
+                    v = tab_v[iv]
+                    xi = cosh(u)
+                    fk = Flmn(l,m,n,xi)*Ylm(l,m,v,0.0)*(sinh(u)^2+sin(v)^2)#*exp(-1.0im*(tab_theta_phi_Minus_phi[index]))
+                    tab_f[index,1] = real(fk)
+                    tab_f[index,2] = imag(fk)
+
+
+                else 
+                    bv = 2*v1-tab_v[2*nbt-iv+1]
+                    # index_v = 2*nbt-iv+1
+
+                    theta_u = tab_dpudJu[iu] - tab_dpvdJu[2*nbt-iv+1]
+                    theta_v = tab_dpudJv[iu] + 2*pi- tab_dpvdJv[2*nbt-iv+1]
+
+                    tab_theta_u[index] = theta_u
+                    tab_theta_v[index] = theta_v
+
+                    theta_phiMinusPhi  = tab_dpudLz[iu] - tab_dpvdLz[2*nbt-iv+1]
+                    tab_theta_phi_Minus_phi[index] = theta_phiMinusPhi
+
+                    tab_alpha[index] = k1*tab_dpudJu[iu] + k2*tab_dpudJv[iu] + k3*tab_dpudLz[iu]
+                    tab_beta[index] = -k1*tab_dpvdJu[2*nbt-iv+1] + 2*pi*k2-k2*tab_dpvdJv[2*nbt-iv+1] - k3*tab_dpvdLz[2*nbt-iv+1]
+                
+                    tab_alpha_u[iu] = k1*tab_dpudJu[iu] + k2*tab_dpudJv[iu] + k3*tab_dpudLz[iu]
+                    tab_beta_v[iv] = -k1*tab_dpvdJu[2*nbt-iv+1] + 2*pi*k2-k2*tab_dpvdJv[2*nbt-iv+1] - k3*tab_dpvdLz[2*nbt-iv+1]
+                         
+
+                    tab_bu_bv[index, 1], tab_bu_bv[index, 2]= bu, bv
+
+                    u = tab_u[iu]
+                    v = tab_v[2*nbt-iv+1]
+                    xi = cosh(u)
+                    fk = Flmn(l,m,n,xi)*Ylm(l,m,v,0.0)*(sinh(u)^2+sin(v)^2)#*exp(-1.0im*m*(tab_theta_phi_Minus_phi[index]))
+                    tab_f[index,1] = real(fk)
+                    tab_f[index,2] = imag(fk)
+
+
+                end
+                tab_bv[iv] = bv
+
+
+            else 
+                bu = 2*u1-tab_u[2*nbt-iu+1]
+                # index_u = 2*nbt-iu+1
+
+                if (iv <= nbt)
+                    bv = tab_v[iv]
+                    # index_v = iv
+
+                    theta_u = 2*pi - tab_dpudJu[2*nbt-iu+1] + tab_dpvdJu[iv]
+                    theta_v = -tab_dpudJv[2*nbt-iu+1] + tab_dpvdJv[iv]
+
+                    tab_theta_u[index] = theta_u
+                    tab_theta_v[index] = theta_v
+
+                    theta_phiMinusPhi  = -tab_dpudLz[2*nbt-iu+1] + tab_dpvdLz[iv]
+                    tab_theta_phi_Minus_phi[index] = theta_phiMinusPhi
+
+                 
+                    tab_alpha[index] = 2*pi*k2-k1*tab_dpudJu[2*nbt-iu+1] - k2*tab_dpudJv[2*nbt-iu+1] - k3*tab_dpudLz[2*nbt-iu+1]
+                    tab_beta[index] = k1*tab_dpvdJu[iv] + k2*tab_dpvdJv[iv] + k3*tab_dpvdLz[iv]
+           
+                    tab_alpha_u[iu] = 2*pi*k2-k1*tab_dpudJu[2*nbt-iu+1] - k2*tab_dpudJv[2*nbt-iu+1] - k3*tab_dpudLz[2*nbt-iu+1]
+                    tab_beta_v[iv] = k1*tab_dpvdJu[iv] + k2*tab_dpvdJv[iv] + k3*tab_dpvdLz[iv]
+
+                    tab_bu_bv[index, 1], tab_bu_bv[index, 2]= bu, bv
+
+                    u = tab_u[2*nbt-iu+1]
+                    v = tab_v[iv]
+                    xi = cosh(u)
+                    fk = Flmn(l,m,n,xi)*Ylm(l,m,v,0.0)*(sinh(u)^2+sin(v)^2)#*exp(-1.0im*(tab_theta_phi_Minus_phi[index]))
+                    tab_f[index,1] = real(fk)
+                    tab_f[index,2] = imag(fk)
+
+
+
+                else 
+                    bv = 2*v1-tab_v[2*nbt-iv+1]
+                    # index_v = 2*nbt-iv+1
+
+
+                    theta_u = 2*pi - tab_dpudJu[2*nbt-iu+1] - tab_dpvdJu[2*nbt-iv+1]
+                    theta_v = -tab_dpudJv[2*nbt-iu+1] + 2*pi -  tab_dpvdJv[2*nbt-iv+1]
+
+                    tab_theta_u[index] = theta_u
+                    tab_theta_v[index] = theta_v
+
+                    tab_alpha[index] = 2*pi*k2-k1*tab_dpudJu[2*nbt-iu+1] - k2*tab_dpudJv[2*nbt-iu+1] - k3*tab_dpudLz[2*nbt-iu+1]
+                    tab_beta[index] = -k1*tab_dpvdJu[2*nbt-iv+1] + 2*pi*k2-k2*tab_dpvdJv[2*nbt-iv+1] - k3*tab_dpvdLz[2*nbt-iv+1]
+
+                    tab_alpha_u[iu] = 2*pi*k2-k1*tab_dpudJu[2*nbt-iu+1] - k2*tab_dpudJv[2*nbt-iu+1] - k3*tab_dpudLz[2*nbt-iu+1]
+                    tab_beta_v[iv] = -k1*tab_dpvdJu[2*nbt-iv+1] + 2*pi*k2-k2*tab_dpvdJv[2*nbt-iv+1] - k3*tab_dpvdLz[2*nbt-iv+1]
+
+                    theta_phiMinusPhi  = -tab_dpudLz[2*nbt-iu+1] - tab_dpvdLz[2*nbt-iv+1]
+                    tab_theta_phi_Minus_phi[index] = theta_phiMinusPhi
+
+
+
+                    tab_bu_bv[index, 1], tab_bu_bv[index, 2]= bu, bv
+
+                    u = tab_u[2*nbt-iu+1]
+                    v = tab_v[2*nbt-iv+1]
+                    xi = cosh(u)
+                    fk = Flmn(l,m,n,xi)*Ylm(l,m,v,0.0)*(sinh(u)^2+sin(v)^2)#*exp(-1.0im*(tab_theta_phi_Minus_phi[index]))
+                    tab_f[index,1] = real(fk)
+                    tab_f[index,2] = imag(fk)
+
+
+
+                end
+                tab_bv[iv] = bv
+
+
+
+
+            end
+            # tab_bu[iu] = bu
+
+            index += 1
+        end
+    end
+
+
+    namefile = "../../nb/data/sample_angles_bu_bv.hdf5"
+
+    file = h5open(namefile, "w")
+    write(file, "tab_thetau", tab_theta_u)
+    write(file, "tab_thetav", tab_theta_v)
+    write(file, "tab_thetaphi_minus_phi", tab_theta_phi_Minus_phi)
+
+    write(file, "tab_alpha", tab_alpha)
+    write(file, "tab_beta", tab_beta)
+
+    write(file, "tab_bu", tab_bu)
+    write(file, "tab_bv", tab_bv)
+    write(file, "tab_alpha_u", tab_alpha_u)
+    write(file, "tab_beta_v", tab_beta_v)
+    write(file, "tab_f", tab_f)
+
+    write(file, "Ju", Ju)
+    write(file, "Jv", Jv)
+    write(file, "Lz", Lz)
+
+    write(file, "tab_bu_bv", tab_bu_bv)
+
+    close(file)
+
+    
+
+end
