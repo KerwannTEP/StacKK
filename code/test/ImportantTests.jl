@@ -1,9 +1,6 @@
 # include("../source/Main.jl")
 
-include("../source/old/Structures.jl")
-include("../source/old/Structure_alt.jl")
-include("../source/old/Old_FTBasis.jl")
-include("../compute/TestFTBasis.jl")
+
 
 
 # Scalar product test (on x variable)
@@ -11,14 +8,14 @@ function scalar_productY(l::Int64, m::Int64, n::Int64, k::Int64, nbx::Int64=100)
 
     sum = 0.0
 
-    for i=1:nbx 
+    for i=1:nbx
         x = 1.0/nbx*(i-0.5)
         Fx =  Flmn_x(l,m,n,x)
         Dx =  Dlmn_x(l,m,k,x)
 
-        sum += 2/(1-x)^2*Fx*Dx 
+        sum += 2/(1-x)^2*Fx*Dx
     end
-    
+
     sum *= -(1.0/nbx)/Delta
 
     return sum 
@@ -38,48 +35,8 @@ end
 
 
 
-# Test Wkp implementations: naive v opti
-function test_Wkp_opti(l::Int64, m::Int64, n::Int64, k1::Int64, k2::Int64, Ju::Float64, Jv::Float64, Lz::Float64, nbt::Int64=nbt_default)
 
-    E, _, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
-    Wkp_last = FT_m_bubv1DHalf(l,m,n,k1,k2,Ju,Jv,Lz)
-    println("Wkp naive = ", real(Wkp_last))
- 
-    # Optimized 
 
-    n0 = 0
-    if (m != 0)
-        n0 = 1
-    end
-
-    nbn = nmax - n0 + 1
-    nbl = lmax - abs(m) + 1
-    nbp = nbl * nbn
-    nbk = (2*kmax+1)^2
-
-    p = 1 + (l-abs(m))*nbn + (n-n0)
-    k = 1 + (k2+kmax) + (k1+kmax)*(2*kmax+1)
-
-    elem = OrbitalElements_alt_half_init(nbt)
-
-    freq_matrix = zeros(Float64, 3, 3)
-    grad_matrix = zeros(Float64, 3, 3)
-    tabWkp_temp = zeros(Float64, nbp, nbk)
-    tabWuWv = zeros(Float64, nbk, 4)
-
-    u0, u1 = find_bounds_u(E,Lz,I3)
-    v0, v1 = find_bounds_v(E,Lz,I3)
- 
-    fill_grad_frequency_matrix!(grad_matrix,freq_matrix,E,Lz,I3)
-
-    OrbitalElements_alt_half_update!(elem,l,m,n,E,I3,Lz,u0,u1,v0,v1,grad_matrix,nbt)
-    tabWkp_alt_half(p,l,tabWkp_temp,tabWuWv,m,elem,freq_matrix,nbk,nbt)
-
-    println("Wkp opti  = ", real(tabWkp_temp[p,k]))
-
-end
-
-         
 
 
 function test_fourier_psilmn(l::Int64, m::Int64, n::Int64, uEff::Float64, vEff::Float64, Ju::Float64, Jv::Float64, Lz::Float64, kmaxCV::Int64, nbt::Int64=nbt_default)
@@ -97,14 +54,14 @@ function test_fourier_psilmn(l::Int64, m::Int64, n::Int64, uEff::Float64, vEff::
     u = tu*sin(uEff) + su
     v = tv*sin(vEff) + sv
 
-    # theory 
+    # theory
     println("kmax = ",kmaxCV)
 
     xi = cosh(u)
     psith = Flmn(l,m,n,xi)*Ylm(l,m,v,0.0)
     println("psi (th)     = ",psith)
 
-    # FT inverse 
+    # FT inverse
     # pu > 0 ; pv > 0
 
     E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
@@ -113,7 +70,7 @@ function test_fourier_psilmn(l::Int64, m::Int64, n::Int64, uEff::Float64, vEff::
     nbk = (2*kmax+1)
     nbk2 = nbk^2
 
-    # Optimized 
+    # Optimized
 
     n0 = 0
     if (m != 0)
@@ -162,8 +119,8 @@ function test_fourier_psilmn(l::Int64, m::Int64, n::Int64, uEff::Float64, vEff::
         # end
     end
 
-    sum = 0.0 + 0.0im 
-    sumrev = 0.0 + 0.0im 
+    sum = 0.0 + 0.0im
+    sumrev = 0.0 + 0.0im
     for it=1:Threads.nthreads()
         sum += sump[it]
         sumrev += sumprev[it]
@@ -187,7 +144,7 @@ function test_psi_Staeckel(u::Float64, v::Float64)
 
     println("psi [theory]   = ",psith)
     println("psi [Staeckel] = ",psiStaeckel)
-    
+
 end
 
 
@@ -197,9 +154,9 @@ end
 
 # U(r,r') = -G/|r-r'|
 # (r-r')^2 = (x-x')^2 + (y-y')^2 + (z-z')^2
-# x = R cos phi 
-# y = R sin phi 
-# R = Delta sinh u sin v 
+# x = R cos phi
+# y = R sin phi
+# R = Delta sinh u sin v
 # z = Delta cosh u cos v
 function test_interaction_potential(u,v,phi,up,vp,phip)
 
@@ -230,7 +187,7 @@ function test_interaction_potential(u,v,phi,up,vp,phip)
             n0 = 1
         end
 
-        for n=n0:nmax 
+        for n=n0:nmax
 
             # m >= 0
             psip_r = sqrt(4*pi*G)/Delta*Flmn(l,m,n,xi)*Ylm(l,m,v,phi)
@@ -242,13 +199,13 @@ function test_interaction_potential(u,v,phi,up,vp,phip)
 
                 psip_r = sqrt(4*pi*G)/Delta*Flmn(l,-m,n,xi)*Ylm(l,-m,v,phi)
                 psip_rp = sqrt(4*pi*G)/Delta*Flmn(l,-m,n,xip)*Ylm(l,-m,vp,phip)
-        
+
                 sum += conj(psip_r)*psip_rp
-        
+
             end
         end
     end
-    
+
     sum *= -1.0
 
     println("U(r,r') [SCF] = ",sum)
@@ -266,7 +223,7 @@ function test_DF_rho(u::Float64, v::Float64, nbE::Int64=100, nbv::Int64=100, nbK
     # Exact expression
     println("rho(u,v) = ",rhoRz)
 
-    # Exact with R,z 
+    # Exact with R,z
     num = (a^2+c^2)*R^2 + 2*a^2*z^2 + 2*a^2*c^2+a^4+3*a^2*sqrt(a^2*c^2+c^2*R^2+a^2*z^2)
     den = (a^2*c^2+c^2*R^2+a^2*z^2)^(3/2)*(R^2+z^2+a^2+c^2+2*sqrt(a^2*c^2+c^2*R^2+a^2*z^2))^(3/2)
     println("rho(R,z) = ",M*c^2/(4*pi)*num/den)
@@ -274,12 +231,12 @@ function test_DF_rho(u::Float64, v::Float64, nbE::Int64=100, nbv::Int64=100, nbK
     # Integration over F(E,Lz)
     sum = 0.0
 
-    for iE=1:nbE 
+    for iE=1:nbE
         E = psiRz + (0-psiRz)/nbE*(iE-0.5)
 
-        for iv=1:nbv 
+        for iv=1:nbv
             vphi = sqrt(2.0*(E-psiRz))/nbv*(iv-0.5)
-            Lz = R*vphi 
+            Lz = R*vphi
 
             Ftot = F(E,Lz,nbK)
 
@@ -287,7 +244,7 @@ function test_DF_rho(u::Float64, v::Float64, nbE::Int64=100, nbv::Int64=100, nbK
         end
     end
 
-    sum *=4.0*pi 
+    sum *=4.0*pi
 
     println("rho DF   = ",sum)
 end
@@ -296,8 +253,8 @@ end
 
 function test_dFdE(E::Float64, Lz::Float64, eps::Float64= 0.01, nbK::Int64=100)
 
-    E_p = E + eps 
-    E_m = E - eps 
+    E_p = E + eps
+    E_m = E - eps
 
     dFdE_num = (F(E_p,Lz,nbK) - F(E_m,Lz,nbK))/(2*eps)
     dFdE_th = _dFdE(E,Lz,nbK)
@@ -313,8 +270,8 @@ end
 
 function test_dFdLz(E::Float64, Lz::Float64, eps::Float64= 0.01, nbK::Int64=100)
 
-    Lz_p = Lz + eps 
-    Lz_m = Lz - eps 
+    Lz_p = Lz + eps
+    Lz_m = Lz - eps
 
     dFdLz_num = (F(E,Lz_p,nbK) - F(E,Lz_m,nbK))/(2*eps)
     dFdLz_th = _dFdLz(E,Lz,nbK)
@@ -336,9 +293,9 @@ function test_dFdJ(Ju::Float64, Jv::Float64, Lz::Float64, dJ::Float64=0.001, nbK
 
    detJ = dJudE*dJvdI3-dJudI3*dJvdE
 
-   Omegau = dJvdI3/detJ 
-   Omegav = -dJudI3/detJ 
-   Omegaz = (dJudI3*dJvdLz-dJudLz*dJvdI3)/detJ 
+   Omegau = dJvdI3/detJ
+   Omegav = -dJudI3/detJ
+   Omegaz = (dJudI3*dJvdLz-dJudLz*dJvdI3)/detJ
 
 
     dFdE = _dFdE(E,Lz,nbK)
@@ -348,9 +305,9 @@ function test_dFdJ(Ju::Float64, Jv::Float64, Lz::Float64, dJ::Float64=0.001, nbK
     dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
     dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
 
- 
 
-    # Num 
+
+    # Num
 
     # Ju
     E_p, Lz_p, I3_p = E_Lz_I3_from_Ju_Lz_Jv(Ju+dJ,Lz,Jv)
@@ -364,19 +321,19 @@ function test_dFdJ(Ju::Float64, Jv::Float64, Lz::Float64, dJ::Float64=0.001, nbK
      # Jv
      E_p, Lz_p, I3_p = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv+dJ)
      E_m, Lz_m, I3_m = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv-dJ)
- 
+
      Fp = F(E_p,Lz_p,nbK)
      Fm = F(E_m,Lz_m,nbK)
- 
+
      dFdJv_num = (Fp-Fm)/(2.0*dJ)
- 
+
      # Lz
      E_p, Lz_p, I3_p = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz+dJ,Jv)
      E_m, Lz_m, I3_m = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz-dJ,Jv)
- 
+
      Fp = F(E_p,Lz_p,nbK)
      Fm = F(E_m,Lz_m,nbK)
- 
+
      dFdLz_num = (Fp-Fm)/(2.0*dJ)
 
      println("dFdJu (th ) = ",dFdJu)
@@ -400,14 +357,14 @@ function frequency_test(Ju::Float64, Jv::Float64, Lz::Float64, nbu::Int64=100, n
 
    detJ = dJudE*dJvdI3-dJudI3*dJvdE
 
-   Omega_u = dJvdI3/detJ 
-   Omega_v = -dJudI3/detJ 
-   Omega_z = (dJudI3*dJvdLz-dJudLz*dJvdI3)/detJ 
+   Omega_u = dJvdI3/detJ
+   Omega_v = -dJudI3/detJ
+   Omega_z = (dJudI3*dJvdLz-dJudLz*dJvdI3)/detJ
 
 
-   # num 
+   # num
 
-   # Omegau = dEdJu 
+   # Omegau = dEdJu
 
    E_p, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju+dJ,Lz,Jv)
    E_m, _ = E_Lz_I3_from_Ju_Lz_Jv(Ju-dJ,Lz,Jv)
@@ -452,14 +409,14 @@ function integrate_rho(nbx::Int64=100, nbeta::Int64=100)
 
     # c(xi,eta) = Delta^2 xi^2 - Delta^2 eta^2
 
-    for i=1:nbx 
+    for i=1:nbx
         x = 1.0/nbx*(i-0.5)
         xi = (1+x)/(1-x)
         lambda = c^2 + Delta^2*xi^2
 
         sumx = 0.0
 
-        for j=1:nbeta 
+        for j=1:nbeta
             eta = -1.0 + 2.0/nbeta*(j-0.5)
             nu = c^2 + Delta^2*eta^2
             v = acos(eta)
@@ -470,9 +427,9 @@ function integrate_rho(nbx::Int64=100, nbeta::Int64=100)
             # println((rhor,cxieta,2.0/(1-x)^2))
 
             sumx += 2.0/nbeta * cxieta * rhor
-        end 
+        end
 
-        sum += 1.0/nbx * 2.0/(1-x)^2 * sumx 
+        sum += 1.0/nbx * 2.0/(1-x)^2 * sumx
     end
 
     sum *= 2.0*pi # integration over \phi yields 2*pi
