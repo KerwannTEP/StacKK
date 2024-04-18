@@ -1,4 +1,4 @@
-# include("../source/Main.jl")
+include("../source/Main.jl")
 
 
 
@@ -18,7 +18,7 @@ function scalar_productY(l::Int64, m::Int64, n::Int64, k::Int64, nbx::Int64=100)
 
     sum *= -(1.0/nbx)/Delta
 
-    return sum 
+    return sum
 end
 
 # Test Ylm(v,0.0)
