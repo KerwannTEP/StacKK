@@ -16,19 +16,19 @@ tabargs = ArgParseSettings()
     "--lmax"
     help = "Maximum harmonic number ell"
     arg_type = Int64
-    default = 2 
+    default = 2
     "--mmax"
     help = "Maximum harmonic number mmax"
     arg_type = Int64
-    default = 0
+    default = 2
     "--nmax"
     help = "Maximum number of radial basis elements"
     arg_type = Int64
-    default = 2 
+    default = 2
     "--kmax"
     help = "Maximum resonance number"
     arg_type = Int64
-    default = 16  
+    default = 16
     "--nbJ"
     help = "Action integral"
     arg_type = Int64

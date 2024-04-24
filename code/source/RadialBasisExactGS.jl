@@ -2,11 +2,10 @@ using HDF5
 
 function Flmn_bare(xi::Float64, l::Int64, m::Int64, n::Int64)
 
-    h = 1.0
     Wrad = 1.0/(xi+1)
     flmn = 1.0
     if (n>0)
-        flmn = ((xi-1.0)/(xi+h))^n
+        flmn = ((xi-1.0)/(xi+1.0))^n
     end
 
     return Wrad*flmn 
@@ -14,20 +13,23 @@ end
 
 
 function C0n(n::Int64)
-    h=1.0
-    return 2.0*(h+1.0)^2*n^2
+    # h=1.0
+    # return 2.0*(h+1.0)^2*n^2
+    return 8.0*n^2
 end
 
 function C1n(n::Int64)
-    h=1.0
-    p=1.0
-    return (1.0+(h+1.0)*n*(n+1.0) - (2.0*n+1.0)*(2.0*p+1.0))*(h+1.0)
+    # h=1.0
+    # p=1.0
+    # return (1.0+(h+1.0)*n*(n+1.0) - (2.0*n+1.0)*(2.0*p+1.0))*(h+1.0)
+    return (1.0+2.0*n*(n+1.0) - (2.0*n+1.0)*3.0)*2.0
 end
 
 function C2n(n::Int64)
-    h=1.0
-    p=1.0
-    return 2.0*p*(p-(h+1.0)*(n+1.0))
+    # h=1.0
+    # p=1.0
+    # return 2.0*p*(p-(h+1.0)*(n+1.0))
+    return 2.0*(1.0-2.0*(n+1.0))
 end
 
 function get_all_coeffs_GS!()
@@ -124,33 +126,33 @@ function Dlmn_bare(xi::Float64, l::Int64, m::Int64, n::Int64)
     C1 = C1n(n)
     C2 = C2n(n)
 
-    p = 1
-    h = 1.0
+    # p = 1
+    # h = 1.0
 
     if (n > 1)
 
-        pref1 = (xi-1)^(n-1)/(xi+h)^(n+p+2)
+        pref1 = (xi-1)^(n-1)/(xi+1.0)^(n+3)
         term1 = C0 + C1*(xi-1) + C2*(xi-1)^2  
 
-        pref2 = (xi-1)^(n-1)/(xi+h)^(p+n)
+        pref2 = (xi-1)^(n-1)/(xi+1.0)^(1+n)
         term2 = l*(l+1)*(xi-1) + m^2/(xi+1)
 
         return (pref1*term1 - pref2*term2)
     elseif (n == 1)
 
-        pref1 = 1.0/(xi+h)^(n+p+2)
+        pref1 = 1.0/(xi+h)^(n+3)
         term1 = C0 + C1*(xi-1) + C2*(xi-1)^2  
 
-        pref2 = 1.0/(xi+h)^(p+n)
+        pref2 = 1.0/(xi+h)^(1+n)
         term2 = l*(l+1)*(xi-1) + m^2/(xi+1)
 
         return (pref1*term1 - pref2*term2)
     else # n = 0
 
-        pref1 = 1.0/(xi+h)^(n+p+2)
+        pref1 = 1.0/(xi+1.0)^(n+3)
         term1 =  C1 + C2*(xi-1)  
 
-        pref2 = 1.0/(xi+h)^(p+n)
+        pref2 = 1.0/(xi+1.0)^(1+n)
         term2 = l*(l+1) 
 
         return (pref1*term1 - pref2*term2)
@@ -190,98 +192,4 @@ function Dlmn_x(l::Int64, m::Int64, n::Int64, x::Float64)
     end
 
 end
-
-
-# Scalar product test (on x variable)
-
-
-function scalar_productY(l::Int64, m::Int64, n::Int64, k::Int64, nbx::Int64=100)
-
-    sum = 0.0
-
-    for i=1:nbx 
-        x = 1.0/nbx*(i-0.5)
-        Fx =  Flmn_x(l,m,n,x)
-        Dx =  Dlmn_x(l,m,k,x)
-
-        sum += 2/(1-x)^2*Fx*Dx 
-    end
-    
-    sum *= -(1.0/nbx)/Delta
-
-    return sum 
-end
-
-
-
-
-# U(r,r') = -G/|r-r'|
-# (r-r')^2 = (x-x')^2 + (y-y')^2 + (z-z')^2
-# x = R cos phi 
-# y = R sin phi 
-# R = Delta sinh u sin v 
-# z = Delta cosh u cos v
-function interaction_potential_GS(u,v,phi,up,vp,phip)
-
-    xi = cosh(u)
-    xip = cosh(up)
-
-    R = Delta * sinh(u) * sin(v)
-    z = Delta * cosh(u) * cos(v)
-    Rp = Delta * sinh(up) * sin(vp)
-    zp = Delta * cosh(up) * cos(vp)
-
-    x = R * cos(phi)
-    y = R * sin(phi)
-    xp = Rp * cos(phip)
-    yp = Rp * sin(phip)
-
-    diff_r = sqrt((x-xp)^2 + (y-yp)^2 + (z-zp)^2)
-
-    println("U(r,r') [th.] = ",-G/diff_r)
-
-    sum = 0.0
-
-
-    nblm = length(tab_lm)
-
-    for lm=1:nblm
-        l, m = tab_lm[lm]
-
-        n0 = 0
-        if (m != 0)
-            n0 = 1
-        end
-
-        for n=n0:nmax 
-
-
-
-            # m >= 0
-            psip_r = sqrt(4*pi*G)/Delta*Flmn(l,m,n,xi)*Ylm(l,m,v,phi)
-            psip_rp = sqrt(4*pi*G)/Delta*Flmn(l,m,n,xip)*Ylm(l,m,vp,phip)
-
-            sum += conj(psip_r)*psip_rp
-
-            if (m != 0)
-
-                psip_r = sqrt(4*pi*G)/Delta*Flmn(l,-m,n,xi)*Ylm(l,-m,v,phi)
-                psip_rp = sqrt(4*pi*G)/Delta*Flmn(l,-m,n,xip)*Ylm(l,-m,vp,phip)
-        
-                sum += conj(psip_r)*psip_rp
-
-                # println("sum = ",sum)
-        
-            end
-        end
-    end
-    
-
-    sum *= -1.0
-
-
-    println("U(r,r') [SCF] = ",sum)
-
-end
-
 
