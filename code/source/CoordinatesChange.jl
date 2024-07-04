@@ -14,6 +14,8 @@ function E_Lz_I3_from_Ju_Lz_Jv(Ju::Float64, Lz::Float64, Jv::Float64, nbu::Int64
 
     iter = 0
 
+    # println((E_guess,I3_guess))
+
     # Newton's method
     while (((Ju_guess-Ju)^2 + (Jv_guess-Jv)^2 > err^2) && (iter < maxIter))
 
@@ -49,6 +51,8 @@ function E_Lz_I3_from_Ju_Lz_Jv(Ju::Float64, Lz::Float64, Jv::Float64, nbu::Int64
         # Update guess
         E_guess = next_E
         I3_guess = next_I3
+
+        # println((E_guess,I3_guess))
 
         Ju_guess = _Ju(E_guess,Lz,I3_guess,nbu)
         Jv_guess = _Jv(E_guess,Lz,I3_guess,nbu)

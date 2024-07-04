@@ -18,6 +18,12 @@ end
 function dUeffdu(u::Float64, Lz::Float64, I3::Float64)
 
     return -4.0*Lz^2*cosh(u)/(2.0*Delta^2*sinh(u)^5) + (sinh(u)*_dUdu(u) - (_U(u)+I3)*2.0*cosh(u))/sinh(u)^3
+
+
+
+
+
+
 end
 
 # Minimum energy E_s for an orbit with angular momentum Lz and third integrand I3 
@@ -35,7 +41,7 @@ function E_shell(Lz::Float64, I3::Float64)
     while (dUeffdu(b1,Lz,I3) <= 0.0)
         b1 *= 2.0
     end
-
+    
     us = bisection(u->dUeffdu(u,Lz,I3),b0,b1)
     Es = Ueff(us,Lz,I3)
 
@@ -111,33 +117,41 @@ function find_bounds_u(E::Float64, Lz::Float64, I3::Float64)
 
     Es, us = E_shell(Lz,I3)
 
-    # println("sssss:",(E,Es,us))
+    # println("sssss:",(E,Es,us,E<Es))
 # 
     # println("us=",us)
     # println("Lz/sinh^2=",Lz/sinh(us)^2)
 
 
-    if (E < Es)
+    if (E <= Es) # set non-allowed orbits to circular value by default
+        # println("a0")
+        # return us, us
         return -1, -1
     else
+        # println("b0")
         b1 = us 
         while (Ueff(b1,Lz,I3) < E)
             b1 /= 2.0
         end
 
-        # println((Ueff(b1,Lz,I3)-E,Ueff(us,Lz,I3)-E))
-        u0 = bisection(u->(Ueff(u,Lz,I3)-E),b1,us)
+        # if (abs(Ueff(us,Lz,I3)-E) <= err_shell) # very close to circular: use circular value
+        #     return us, us
+        # else
 
-        b2 = us 
-        while (Ueff(b2,Lz,I3) < E)
-            b2 *= 2.0
-        end
+            # println((Ueff(b1,Lz,I3)-E,Ueff(us,Lz,I3)-E))
+            u0 = bisection(u->(Ueff(u,Lz,I3)-E),b1,us)
 
-        # println((Ueff(us,Lz,I3)-E,Ueff(b2,Lz,I3)-E))
+            b2 = us 
+            while (Ueff(b2,Lz,I3) < E)
+                b2 *= 2.0
+            end
 
-        u1 = bisection(u->(Ueff(u,Lz,I3)-E),us,b2)
+            # println((Ueff(us,Lz,I3)-E,Ueff(b2,Lz,I3)-E))
 
-        return u0, u1
+            u1 = bisection(u->(Ueff(u,Lz,I3)-E),us,b2)
+
+            return u0, u1
+        # end
     end
 
 end
@@ -149,7 +163,8 @@ function _Ju(E::Float64, Lz::Float64, I3::Float64, nbu::Int64=nbu_default)
 
     u0, u1 = find_bounds_u(E,Lz,I3)
     # println("(u0,u1)=",(u0,u1))
-    if (u0 != -1.0) # pv^2(pi/2) >= 0
+    # if (abs(u0-u1) >= err_u) # pv^2(pi/2) >= 0
+    if (u0 != -1)# pv^2(pi/2) >= 0
         
         sum = 0.0
 
@@ -238,7 +253,7 @@ function find_bounds_v(E::Float64, Lz::Float64, I3::Float64)
 
     vm = 0.5*PI
     if (2.0*Delta^2*(E+I3) <= Lz^2) 
-        return nothing 
+        return vm, vm 
     else
 
         v0 = bisection( v->pvSq(v,E,Lz,I3),0.0,0.5*PI)
@@ -631,7 +646,7 @@ function bisection(fun::Function, xl::Float64, xu::Float64, tolx::Float64=1.0*10
     # end
 
     #####
-    @assert fl*fu < 0.0 "bisection: NOT A BRACKET"
+    @assert fl*fu < 0.0 "bisection: NOT A BRACKET : (xl,xu,fl,fu) = "*string((xl,xu,fl,fu))
     #####
     iter = 0 # Counter for the iterations
     #####

@@ -23,6 +23,9 @@ const Lzmax = 5.0
 
 const cutoffEff = 0.01 # Effective anomaly cutoff precision
 
+const err_shell = 10^(-10)
+const err_u = 0.00001
+
 const INV_PI = 1.0/pi
 const PI = pi
 

@@ -69,6 +69,14 @@ tabargs = ArgParseSettings()
     help = "Action space min index integration (for thread splitting)"
     arg_type = Int64
     default = 1
+    "--iJmin2D"
+    help = "Action space min index integration (for thread splitting) for rotation 2D integral"
+    arg_type = Int64
+    default = 1
+    "--iJmax2D"
+    help = "Action space min index integration (for thread splitting) for rotation 2D integral"
+    arg_type = Int64
+    default = 1
 end
 parsed_args = parse_args(tabargs)
 
@@ -91,5 +99,7 @@ const errInverse = parsed_args["errInv"]
 const maxIter_default = parsed_args["maxIter"]
 const iJmin_default = parsed_args["iJmin"]
 const iJmax_default = parsed_args["iJmax"]
+const iJmin2d_default = parsed_args["iJmin2D"]
+const iJmax2d_default = parsed_args["iJmax2D"]
 
 @assert (a>c) "a<c is an oblate coordinate system"
