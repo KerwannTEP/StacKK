@@ -13,7 +13,7 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
     nbp = nbl * nbn
     nbgrid = nbJ^3
     nbk = (2*kmax+1)^2
-    nbomega = nbRe * nbIm 
+    nbomega = nbRe * nbIm
 
     dtJu = pi/2.0/nbJ
     dtJv = pi/2.0/nbJ
@@ -21,7 +21,7 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
     tab_omega = zeros(Float64, nbomega, 2) # (re, im)
 
-    for iomega=1:nbomega 
+    for iomega=1:nbomega
 
         # iomega - 1 = im-1 + nbIm*(ire-1)
 
@@ -31,7 +31,7 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
         re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
         im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
 
-        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega 
+        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega
     end
 
 
@@ -40,28 +40,28 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
     freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
     grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
 
-  
 
-    tab_Mpq_a_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()] 
-    tab_Mpq_b_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()] 
 
-    tabWkp_temp = [zeros(Float64, nbp, nbk) for it=1:Threads.nthreads()] 
+    tab_Mpq_a_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()]
+    tab_Mpq_b_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()]
 
-    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+    tabWkp_temp = [zeros(Float64, nbp, nbk) for it=1:Threads.nthreads()]
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()]
 
 
     # 3D integration for integralds a and b
-    Threads.@threads for iJ=1:nbgrid 
+    Threads.@threads for iJ=1:nbgrid
 
         # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
-        # nbz = nbJ 
-        # nbv = nbJ 
+        # nbz = nbJ
+        # nbv = nbJ
 
         iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
         leftover = iJ - 1 - nbJ^2*(iu-1)
 
         # leftover = iz-1 + nbz*(iv-1)
-        # nbz = nbJ 
+        # nbz = nbJ
 
         iv = floor(Int64,leftover/nbJ) + 1
         iz = leftover - nbJ*(iv-1) + 1
@@ -93,7 +93,7 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
           fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
         # trans_freq = transpose(freq_matrix[id_thread])
-        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]
 
 
 
@@ -104,23 +104,23 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
         dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
         dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
 
-       
 
-        for p=1:nbp 
+
+        for p=1:nbp
 
             # nbn = nmax - n0 + 1
             # p = n-n0 + nbn*(l-abs(m)) + 1
-            # p - 1 = n-n0 + nbn * l 
+            # p - 1 = n-n0 + nbn * l
 
             l = abs(m) + floor(Int64,(p-1)/nbn)
             n = n0 + p - 1 - nbn * (l - abs(m))
-            
-            
+
+
 
             OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E,I3,Lz,u0,u1,v0,v1,grad_matrix[id_thread],nbt)
              tabWkp_alt_half(p,l,tabWkp_temp[id_thread],tabWuWv[id_thread],m,elem[id_thread],freq_matrix[id_thread],nbk,nbt)
-           
-           
+
+
         end
 
 
@@ -128,13 +128,13 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
             # nbkline = 2*kmax+1
             # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
-            
+
             k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
             k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
 
             kdotdF = k1*dFdJu + k2*dFdJv + m*dFdLz
-                        
-            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz
 
             for iomega=1:nbomega
 
@@ -144,15 +144,15 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
                 # println((omega,invden))
 
-                for index=1:nbp*nbp 
+                for index=1:nbp*nbp
 
                     # index - 1 = (q-1) + (p-1)*nbp
-    
+
                     p = floor(Int64, (index-1)/nbp) + 1
                     q  = index  - (p-1)*nbp
 
-    
-                   
+
+
 
                     lp = abs(m) + floor(Int64,(p-1)/nbn)
                     lq = abs(m) + floor(Int64,(q-1)/nbn)
@@ -162,14 +162,14 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
                     if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
 
-                        Wkp = tabWkp_temp[id_thread][p,k]  
-                        Wkq = tabWkp_temp[id_thread][q,k]  
+                        Wkp = tabWkp_temp[id_thread][p,k]
+                        Wkq = tabWkp_temp[id_thread][q,k]
                         integrand = Wkp * Wkq * invden
 
                         tab_Mpq_a_par[index,iomega,id_thread] += integrand * jacu * jacv * jacz
                         tab_Mpq_b_par[index,iomega,id_thread] += integrand * sign(Lz) * jacu * jacv * jacz
                     end
- 
+
                 end
 
             end
@@ -183,18 +183,18 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
 
 
-    # 2D integration for c 
+    # 2D integration for c
     # Evaluate at Lz = +epsLz and Lz = -epsLz
 
 
     nbgrid2d = nbJ^2
-    tab_Mpq_c_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()] 
+    tab_Mpq_c_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()]
 
 
-    Threads.@threads for iJ=1:nbgrid2d 
+    Threads.@threads for iJ=1:nbgrid2d
 
         # iJ - 1 = (iv-1) + nbv*(iu-1)
-       
+
         # TODO
         iu = floor(Int64,(iJ-1)/nbJ) + 1
         iv = iJ - 1 - nbJ*(iu-1) + 1
@@ -229,38 +229,38 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
         # Lz = 0+
 
         fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E_p,Lz_p,I3_p)
-        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]
 
         Ftot = F(E_p,Lz_p)
 
-        for p=1:nbp 
+        for p=1:nbp
 
             # nbn = nmax - n0 + 1
             # p = n-n0 + nbn*(l-abs(m)) + 1
-            # p - 1 = n-n0 + nbn * l 
+            # p - 1 = n-n0 + nbn * l
 
             l = abs(m) + floor(Int64,(p-1)/nbn)
             n = n0 + p - 1 - nbn * (l - abs(m))
-            
-            
+
+
 
             OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E_p,I3_p,Lz_p,u0_p,u1_p,v0_p,v1_p,grad_matrix[id_thread],nbt)
             tabWkp_alt_half(p,l,tabWkp_temp[id_thread],tabWuWv[id_thread],m,elem[id_thread],freq_matrix[id_thread],nbk,nbt)
-           
-           
+
+
         end
 
         for k=1:nbk
 
             # nbkline = 2*kmax+1
             # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
-            
+
             k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
             k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
 
             mF = m*Ftot
-                        
-            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz
 
             for iomega=1:nbomega
 
@@ -270,15 +270,15 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
                 # println((omega,invden))
 
-                for index=1:nbp*nbp 
+                for index=1:nbp*nbp
 
                     # index - 1 = (q-1) + (p-1)*nbp
-    
+
                     p = floor(Int64, (index-1)/nbp) + 1
                     q  = index  - (p-1)*nbp
 
-    
-                   
+
+
 
                     lp = abs(m) + floor(Int64,(p-1)/nbn)
                     lq = abs(m) + floor(Int64,(q-1)/nbn)
@@ -288,13 +288,13 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
                     if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
 
-                        Wkp = tabWkp_temp[id_thread][p,k]  
-                        Wkq = tabWkp_temp[id_thread][q,k]  
+                        Wkp = tabWkp_temp[id_thread][p,k]
+                        Wkq = tabWkp_temp[id_thread][q,k]
                         integrand = Wkp * Wkq * invden
 
                         tab_Mpq_c_par[index,iomega,id_thread] += 0.5*integrand * jacu * jacv  # symmetric central value, positive part
                     end
- 
+
                 end
 
             end
@@ -307,38 +307,38 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
         # Lz = 0-
 
         fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E_m,Lz_m,I3_m)
-        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]
 
         Ftot = F(E_m,Lz_m)
 
-        for p=1:nbp 
+        for p=1:nbp
 
             # nbn = nmax - n0 + 1
             # p = n-n0 + nbn*(l-abs(m)) + 1
-            # p - 1 = n-n0 + nbn * l 
+            # p - 1 = n-n0 + nbn * l
 
             l = abs(m) + floor(Int64,(p-1)/nbn)
             n = n0 + p - 1 - nbn * (l - abs(m))
-            
-            
+
+
 
             OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E_m,I3_m,Lz_m,u0_m,u1_m,v0_m,v1_m,grad_matrix[id_thread],nbt)
             tabWkp_alt_half(p,l,tabWkp_temp[id_thread],tabWuWv[id_thread],m,elem[id_thread],freq_matrix[id_thread],nbk,nbt)
-           
-           
+
+
         end
 
         for k=1:nbk
 
             # nbkline = 2*kmax+1
             # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
-            
+
             k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
             k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
 
             mF = m*Ftot
-                        
-            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz
 
             for iomega=1:nbomega
 
@@ -348,15 +348,15 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
                 # println((omega,invden))
 
-                for index=1:nbp*nbp 
+                for index=1:nbp*nbp
 
                     # index - 1 = (q-1) + (p-1)*nbp
-    
+
                     p = floor(Int64, (index-1)/nbp) + 1
                     q  = index  - (p-1)*nbp
 
-    
-                   
+
+
 
                     lp = abs(m) + floor(Int64,(p-1)/nbn)
                     lq = abs(m) + floor(Int64,(q-1)/nbn)
@@ -366,13 +366,13 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
 
                     if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
 
-                        Wkp = tabWkp_temp[id_thread][p,k]  
-                        Wkq = tabWkp_temp[id_thread][q,k]  
+                        Wkp = tabWkp_temp[id_thread][p,k]
+                        Wkq = tabWkp_temp[id_thread][q,k]
                         integrand = Wkp * Wkq * invden
 
                         tab_Mpq_c_par[index,iomega,id_thread] += 0.5*integrand * jacu * jacv  # symmetric central value, negative part
                     end
- 
+
                 end
 
             end
@@ -396,11 +396,11 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
     tab_Mpq_b = zeros(ComplexF64, nbp, nbp, nbomega)
     tab_Mpq_c = zeros(ComplexF64, nbp, nbp, nbomega)
 
- 
-    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
- 
 
-    Threads.@threads for index=1:nbp*nbp 
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+
+
+    Threads.@threads for index=1:nbp*nbp
 
         # index - 1 = (q-1) + (p-1)*nbp
 
@@ -408,7 +408,7 @@ function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega
         q  = index  - (p-1)*nbp
 
         for iomega=1:nbomega
-            
+
 
             # tab_Mpq[p,q,iomega] = tab_Mpq_par_re[index,iomega][] + 1im*tab_Mpq_par_im[index,iomega][]
 
@@ -437,7 +437,7 @@ end
 
 # THIS IS THE CORRECT FUNCTION
 # USE THIS
-function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default, iJmin::Int64=iJmin_default, iJmax::Int64=iJmax_default, iJmin2d::Int64=iJmin2d_default, iJmax2d::Int64=iJmax2d_default)
+function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default, epsLz::Float64=4.0*10^(-5), iJmin::Int64=iJmin_default, iJmax::Int64=iJmax_default, iJmin2d::Int64=iJmin2d_default, iJmax2d::Int64=iJmax2d_default)
 
     @assert (abs(m) <= mmax) "m must be less that m_max"
 
@@ -451,7 +451,7 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
     nbp = nbl * nbn
     nbgrid = nbJ^3
     nbk = (2*kmax+1)^2
-    nbomega = nbRe * nbIm 
+    nbomega = nbRe * nbIm
 
     dtJu = pi/2.0/nbJ
     dtJv = pi/2.0/nbJ
@@ -459,7 +459,7 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
     tab_omega = zeros(Float64, nbomega, 2) # (re, im)
 
-    for iomega=1:nbomega 
+    for iomega=1:nbomega
 
         # iomega - 1 = im-1 + nbIm*(ire-1)
 
@@ -469,7 +469,7 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
         re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
         im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
 
-        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega 
+        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega
     end
 
 
@@ -478,28 +478,28 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
     freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
     grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
 
-  
 
-    tab_Mpq_a_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()] 
-    tab_Mpq_b_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()] 
 
-    tabWkp_temp = [zeros(Float64, nbp, nbk) for it=1:Threads.nthreads()] 
+    tab_Mpq_a_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()]
+    tab_Mpq_b_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()]
 
-    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+    tabWkp_temp = [zeros(Float64, nbp, nbk) for it=1:Threads.nthreads()]
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()]
 
 
     # Maybe use different nbJu, nbJv, nbLz
     Threads.@threads for iJ=iJmin:iJmax
 
         # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
-        # nbz = nbJ 
-        # nbv = nbJ 
+        # nbz = nbJ
+        # nbv = nbJ
 
         iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
         leftover = iJ - 1 - nbJ^2*(iu-1)
 
         # leftover = iz-1 + nbz*(iv-1)
-        # nbz = nbJ 
+        # nbz = nbJ
 
         iv = floor(Int64,leftover/nbJ) + 1
         iz = leftover - nbJ*(iv-1) + 1
@@ -531,7 +531,7 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
           fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
         # trans_freq = transpose(freq_matrix[id_thread])
-        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]
 
 
 
@@ -542,23 +542,23 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
         dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
         dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
 
-       
 
-        for p=1:nbp 
+
+        for p=1:nbp
 
             # nbn = nmax - n0 + 1
             # p = n-n0 + nbn*(l-abs(m)) + 1
-            # p - 1 = n-n0 + nbn * l 
+            # p - 1 = n-n0 + nbn * l
 
             l = abs(m) + floor(Int64,(p-1)/nbn)
             n = n0 + p - 1 - nbn * (l - abs(m))
-            
-            
+
+
 
             OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E,I3,Lz,u0,u1,v0,v1,grad_matrix[id_thread],nbt)
              tabWkp_alt_half(p,l,tabWkp_temp[id_thread],tabWuWv[id_thread],m,elem[id_thread],freq_matrix[id_thread],nbk,nbt)
-           
-           
+
+
         end
 
 
@@ -566,13 +566,13 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
             # nbkline = 2*kmax+1
             # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
-            
+
             k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
             k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
 
             kdotdF = k1*dFdJu + k2*dFdJv + m*dFdLz
-                        
-            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz
 
             for iomega=1:nbomega
 
@@ -582,15 +582,15 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
                 # println((omega,invden))
 
-                for index=1:nbp*nbp 
+                for index=1:nbp*nbp
 
                     # index - 1 = (q-1) + (p-1)*nbp
-    
+
                     p = floor(Int64, (index-1)/nbp) + 1
                     q  = index  - (p-1)*nbp
 
-    
-                   
+
+
 
                     lp = abs(m) + floor(Int64,(p-1)/nbn)
                     lq = abs(m) + floor(Int64,(q-1)/nbn)
@@ -600,14 +600,14 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
                     if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
 
-                        Wkp = tabWkp_temp[id_thread][p,k]  
-                        Wkq = tabWkp_temp[id_thread][q,k]  
+                        Wkp = tabWkp_temp[id_thread][p,k]
+                        Wkq = tabWkp_temp[id_thread][q,k]
                         integrand = Wkp * Wkq * invden
 
                         tab_Mpq_a_par[index,iomega,id_thread] += integrand * jacu * jacv * jacz
                         tab_Mpq_b_par[index,iomega,id_thread] += integrand * sign(Lz) * jacu * jacv * jacz
                     end
- 
+
                 end
 
             end
@@ -619,22 +619,22 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
     end
 
-    # 2D integration for c 
+    # 2D integration for c
     # Evaluate at Lz = +epsLz and Lz = -epsLz
 
 
     nbgrid2d = nbJ^2
-    tab_Mpq_c_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()] 
+    tab_Mpq_c_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()]
 
 
 
 
-    # Use iJmin2d and iJmax2d 
+    # Use iJmin2d and iJmax2d
 
     Threads.@threads for iJ=iJmin2d:iJmax2d
 
         # iJ - 1 = (iv-1) + nbv*(iu-1)
-       
+
         # TODO
         iu = floor(Int64,(iJ-1)/nbJ) + 1
         iv = iJ - 1 - nbJ*(iu-1) + 1
@@ -669,38 +669,38 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
         # Lz = 0+
 
         fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E_p,Lz_p,I3_p)
-        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]
 
         Ftot = F(E_p,Lz_p)
 
-        for p=1:nbp 
+        for p=1:nbp
 
             # nbn = nmax - n0 + 1
             # p = n-n0 + nbn*(l-abs(m)) + 1
-            # p - 1 = n-n0 + nbn * l 
+            # p - 1 = n-n0 + nbn * l
 
             l = abs(m) + floor(Int64,(p-1)/nbn)
             n = n0 + p - 1 - nbn * (l - abs(m))
-            
-            
+
+
 
             OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E_p,I3_p,Lz_p,u0_p,u1_p,v0_p,v1_p,grad_matrix[id_thread],nbt)
             tabWkp_alt_half(p,l,tabWkp_temp[id_thread],tabWuWv[id_thread],m,elem[id_thread],freq_matrix[id_thread],nbk,nbt)
-           
-           
+
+
         end
 
         for k=1:nbk
 
             # nbkline = 2*kmax+1
             # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
-            
+
             k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
             k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
 
             mF = m*Ftot
-                        
-            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz
 
             for iomega=1:nbomega
 
@@ -710,15 +710,15 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
                 # println((omega,invden))
 
-                for index=1:nbp*nbp 
+                for index=1:nbp*nbp
 
                     # index - 1 = (q-1) + (p-1)*nbp
-    
+
                     p = floor(Int64, (index-1)/nbp) + 1
                     q  = index  - (p-1)*nbp
 
-    
-                   
+
+
 
                     lp = abs(m) + floor(Int64,(p-1)/nbn)
                     lq = abs(m) + floor(Int64,(q-1)/nbn)
@@ -728,13 +728,13 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
                     if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
 
-                        Wkp = tabWkp_temp[id_thread][p,k]  
-                        Wkq = tabWkp_temp[id_thread][q,k]  
+                        Wkp = tabWkp_temp[id_thread][p,k]
+                        Wkq = tabWkp_temp[id_thread][q,k]
                         integrand = Wkp * Wkq * invden
 
                         tab_Mpq_c_par[index,iomega,id_thread] += 0.5*integrand * jacu * jacv  # symmetric central value, positive part
                     end
- 
+
                 end
 
             end
@@ -747,38 +747,38 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
         # Lz = 0-
 
         fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E_m,Lz_m,I3_m)
-        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]
 
         Ftot = F(E_m,Lz_m)
 
-        for p=1:nbp 
+        for p=1:nbp
 
             # nbn = nmax - n0 + 1
             # p = n-n0 + nbn*(l-abs(m)) + 1
-            # p - 1 = n-n0 + nbn * l 
+            # p - 1 = n-n0 + nbn * l
 
             l = abs(m) + floor(Int64,(p-1)/nbn)
             n = n0 + p - 1 - nbn * (l - abs(m))
-            
-            
+
+
 
             OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E_m,I3_m,Lz_m,u0_m,u1_m,v0_m,v1_m,grad_matrix[id_thread],nbt)
             tabWkp_alt_half(p,l,tabWkp_temp[id_thread],tabWuWv[id_thread],m,elem[id_thread],freq_matrix[id_thread],nbk,nbt)
-           
-           
+
+
         end
 
         for k=1:nbk
 
             # nbkline = 2*kmax+1
             # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
-            
+
             k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
             k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
 
             mF = m*Ftot
-                        
-            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz
 
             for iomega=1:nbomega
 
@@ -788,15 +788,15 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
                 # println((omega,invden))
 
-                for index=1:nbp*nbp 
+                for index=1:nbp*nbp
 
                     # index - 1 = (q-1) + (p-1)*nbp
-    
+
                     p = floor(Int64, (index-1)/nbp) + 1
                     q  = index  - (p-1)*nbp
 
-    
-                   
+
+
 
                     lp = abs(m) + floor(Int64,(p-1)/nbn)
                     lq = abs(m) + floor(Int64,(q-1)/nbn)
@@ -806,13 +806,13 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
                     if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
 
-                        Wkp = tabWkp_temp[id_thread][p,k]  
-                        Wkq = tabWkp_temp[id_thread][q,k]  
+                        Wkp = tabWkp_temp[id_thread][p,k]
+                        Wkq = tabWkp_temp[id_thread][q,k]
                         integrand = Wkp * Wkq * invden
 
                         tab_Mpq_c_par[index,iomega,id_thread] += 0.5*integrand * jacu * jacv  # symmetric central value, negative part
                     end
- 
+
                 end
 
             end
@@ -834,11 +834,11 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
     tab_Mpq_b = zeros(ComplexF64, nbp, nbp, nbomega)
     tab_Mpq_c = zeros(ComplexF64, nbp, nbp, nbomega)
 
- 
-    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
- 
 
-    Threads.@threads for index=1:nbp*nbp 
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+
+
+    Threads.@threads for index=1:nbp*nbp
 
         # index - 1 = (q-1) + (p-1)*nbp
 
@@ -846,7 +846,7 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
         q  = index  - (p-1)*nbp
 
         for iomega=1:nbomega
-            
+
 
             # tab_Mpq[p,q,iomega] = tab_Mpq_par_re[index,iomega][] + 1im*tab_Mpq_par_im[index,iomega][]
 

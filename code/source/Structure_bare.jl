@@ -1,8 +1,8 @@
-mutable struct OrbitalElements_alt_half
+mutable struct OrbitalElements_bare
 
-    E::Float64
-    I3::Float64 
-    Lz::Float64
+    # E::Float64
+    # I3::Float64 
+    # Lz::Float64
 
     u0::Float64 
     u1::Float64 
@@ -10,12 +10,13 @@ mutable struct OrbitalElements_alt_half
     v0::Float64 
     v1::Float64
 
-    tab_Flmn::Vector{Float64}
+    tab_Fn::Vector{Float64}
     tab_tpu::Vector{Float64}
     tab_dpudE::Vector{Float64}
     tab_dpudI3::Vector{Float64}
     tab_dpudLz::Vector{Float64}
     tab_Jacu::Vector{Float64}
+    tab_xi::Vector{Float64}
 
     tab_ylm::Vector{Float64}
     tab_tpv::Vector{Float64}
@@ -23,19 +24,21 @@ mutable struct OrbitalElements_alt_half
     tab_dpvdI3::Vector{Float64}
     tab_dpvdLz::Vector{Float64}
     tab_Jacv::Vector{Float64}
+    tab_v::Vector{Float64}
 
 
 end
 
 
-function OrbitalElements_alt_half_init(nbt::Int64)
+function OrbitalElements_bare_init(nbt::Int64)
 
-    tab_Flmn = zeros(Float64, 2*nbt+1)
+    tab_Fn = zeros(Float64, 2*nbt+1)
     tab_tpu = zeros(Float64, 2*nbt+1)
     tab_dpudE = zeros(Float64, 2*nbt+1)
     tab_dpudI3 = zeros(Float64, 2*nbt+1)
     tab_dpudLz = zeros(Float64, 2*nbt+1)
     tab_Jacu = zeros(Float64, 2*nbt+1)
+    tab_xi = zeros(Float64, 2*nbt+1)
 
     tab_ylm = zeros(Float64, 2*nbt+1)
     tab_tpv = zeros(Float64, 2*nbt+1)
@@ -43,32 +46,33 @@ function OrbitalElements_alt_half_init(nbt::Int64)
     tab_dpvdI3 = zeros(Float64, 2*nbt+1)
     tab_dpvdLz = zeros(Float64, 2*nbt+1)
     tab_Jacv = zeros(Float64, 2*nbt+1)
+    tab_v = zeros(Float64, 2*nbt+1)
 
     
 
-    elements = OrbitalElements_alt_half(0.0,0.0,0.0,0.0,0.0,0.0,0.0,tab_Flmn,tab_tpu,tab_dpudE,tab_dpudI3,tab_dpudLz,tab_Jacu,tab_ylm,tab_tpv,tab_dpvdE,tab_dpvdI3,tab_dpvdLz,tab_Jacv)
+    # elements = OrbitalElements_bare(0.0,0.0,0.0,0.0,0.0,0.0,0.0,tab_Fn,tab_tpu,tab_dpudE,tab_dpudI3,tab_dpudLz,tab_Jacu,tab_ylm,tab_tpv,tab_dpvdE,tab_dpvdI3,tab_dpvdLz,tab_Jacv)
+    elements = OrbitalElements_bare(0.0,0.0,0.0,0.0,tab_Fn,tab_tpu,tab_dpudE,tab_dpudI3,tab_dpudLz,tab_Jacu,tab_xi,tab_ylm,tab_tpv,tab_dpvdE,tab_dpvdI3,tab_dpvdLz,tab_Jacv,tab_v)
+
 
     return elements
 
 end
 
 
-function OrbitalElements_alt_half_update!(elem::OrbitalElements_alt_half, l::Int64, m::Int64, n::Int64, E::Float64, I3::Float64, Lz::Float64, u0::Float64, u1::Float64, v0::Float64, v1::Float64, grad_matrix::Matrix{Float64}, nbt::Int64)
+function OrbitalElements_bare_update_u!(elem::OrbitalElements_bare, n::Int64, E::Float64, I3::Float64, Lz::Float64, u0::Float64, u1::Float64, grad_matrix::Matrix{Float64}, nbt::Int64)
 
-    elem.E = E 
-    elem.Lz = Lz 
-    elem.I3 = I3
+    # elem.E = E 
+    # elem.Lz = Lz 
+    # elem.I3 = I3
 
     elem.u0 = u0
     elem.u1 = u1
-    elem.v0 = v0
-    elem.v1 = v1
+
 
     su = 0.5*(u0+u1)
     tu = 0.5*(u1-u0)
 
-    sv = 0.5*(v0+v1)
-    tv = 0.5*(v1-v0)
+
 
     Jw = abs(grad_matrix[1,1]*grad_matrix[2,2] - grad_matrix[1,2]*grad_matrix[2,1])
 
@@ -78,8 +82,7 @@ function OrbitalElements_alt_half_update!(elem::OrbitalElements_alt_half, l::Int
         uEff = pi/2 - pi/(2.0*nbt)*(iu)
         u = tu*sin(uEff) + su
         xi = cosh(u)
-        Flmn_u = Flmn(l,m,n,xi) 
-        # Flmn_u = Fn_bare(xi,n)
+        Fn_u = Fn_bare(xi,n)
         tpu = _tpu(uEff,E,Lz,I3,u0,u1)
 
         dpudE = Delta^2*sinh(u)^2/tpu
@@ -87,15 +90,57 @@ function OrbitalElements_alt_half_update!(elem::OrbitalElements_alt_half, l::Int
         dpudLz = -Lz/(tpu*sinh(u)^2)
         Jacu = Delta^4/Jw * (sinh(u)^2 ) 
 
-        elem.tab_Flmn[iu+1] = Flmn_u
+        elem.tab_Fn[iu+1] = Fn_u
         elem.tab_tpu[iu+1] = tpu
         elem.tab_dpudE[iu+1] = dpudE
         elem.tab_dpudI3[iu+1] = dpudI3
         elem.tab_dpudLz[iu+1] = dpudLz
         elem.tab_Jacu[iu+1] = Jacu
+        elem.tab_xi[iu+1] = xi
 
 
     end
+
+
+
+end
+
+function OrbitalElements_bare_update_Fn!(elem::OrbitalElements_bare, n::Int64, nbt::Int64)
+
+
+
+    for iu=0:2*nbt
+
+        xi = elem.tab_xi[iu+1]
+        Fn_u = Fn_bare(xi,n)
+
+        elem.tab_Fn[iu+1] = Fn_u
+  
+
+    end
+
+
+
+end
+
+
+function OrbitalElements_bare_update_v!(elem::OrbitalElements_bare, l::Int64, m::Int64, E::Float64, I3::Float64, Lz::Float64, v0::Float64, v1::Float64, grad_matrix::Matrix{Float64}, nbt::Int64)
+
+    # elem.E = E 
+    # elem.Lz = Lz 
+    # elem.I3 = I3
+
+
+    elem.v0 = v0
+    elem.v1 = v1
+
+
+    sv = 0.5*(v0+v1)
+    tv = 0.5*(v1-v0)
+
+    Jw = abs(grad_matrix[1,1]*grad_matrix[2,2] - grad_matrix[1,2]*grad_matrix[2,1])
+
+
 
     for iv=0:2*nbt
 
@@ -116,6 +161,7 @@ function OrbitalElements_alt_half_update!(elem::OrbitalElements_alt_half, l::Int
         elem.tab_dpvdI3[iv+1] = dpvdI3
         elem.tab_dpvdLz[iv+1] = dpvdLz
         elem.tab_Jacv[iv+1] = Jacv
+        elem.tab_v[iv+1] = v
 
 
     end
@@ -124,6 +170,22 @@ function OrbitalElements_alt_half_update!(elem::OrbitalElements_alt_half, l::Int
 
 end
 
+function OrbitalElements_bare_update_Ylm!(elem::OrbitalElements_bare, l::Int64, m::Int64, nbt::Int64)
 
 
 
+    for iv=0:2*nbt
+
+        
+        v = elem.tab_v[iv+1]
+
+        ylm_v = SphericalHarmonics.associatedLegendre(v,l,m)/sqrt(2.0)
+  
+        elem.tab_ylm[iv+1] = ylm_v
+      
+
+    end
+
+   
+
+end

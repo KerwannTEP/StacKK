@@ -358,9 +358,6 @@ function tabWkp_alt_half(p::Int64, l::Int64, tabWkp::Matrix{Float64}, tabWuWv::M
 
 end
 
-
-
-
 # THIS IS THE CORRECT FUNCTION
 # USE THIS
 function ResponseMatrix_m_sampling_alt_half(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
@@ -536,7 +533,12 @@ function ResponseMatrix_m_sampling_alt_half(m::Int64, re_omega_min::Float64, re_
 
             end
 
+
         end
+
+        
+
+
 
         # println("-----")
 
@@ -1117,8 +1119,9 @@ function ResponseMatrix_m_sampling_imaginary_alt_half_split(m::Int64, im_omega_m
         jacv = (1.0+Jv^2)
         jacz = (1.0+Lz^2)
 
+        
 
-        E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+         E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
 
         u0, u1 = find_bounds_u(E,Lz,I3)
         v0, v1 = find_bounds_v(E,Lz,I3)
@@ -1141,7 +1144,7 @@ function ResponseMatrix_m_sampling_imaginary_alt_half_split(m::Int64, im_omega_m
         # OrbitalElements_update!(elem[id_thread],E,I3,Lz,u0,u1,v0,v1,nbt,freq_matrix[id_thread]) # l does not change: We don't have to update the spheroidal harmonics
 
 
-        for p=1:nbp 
+         for p=1:nbp 
 
             # nbn = nmax - n0 + 1
             # p = n-n0 + nbn*(l-abs(m)) + 1
@@ -1248,3 +1251,181 @@ function ResponseMatrix_m_sampling_imaginary_alt_half_split(m::Int64, im_omega_m
     return tab_Mpq, tab_omega
 end
 
+
+
+
+function tab_Mpq_par!(id_thread::Int64, tab_Mpq_par::Matrix{ComplexF64}, tabWkp_temp::Matrix{Float64}, omega::ComplexF64, k::Int64, m::Int64, dFdJu::Float64, dFdJv::Float64, dFdLz::Float64, Omegau::Float64, Omegav::Float64, Omegaz::Float64, jacu::Float64, jacv::Float64, jacz::Float64, nbn::Int64, nbp::Int64, n0::Int64)
+
+    # nbkline = 2*kmax+1
+    # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
+    
+    k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
+    k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
+
+    kdotdF = k1*dFdJu + k2*dFdJv + m*dFdLz
+    kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+    invden = kdotdF/(omega-kdotOmega)
+
+    for index=1:nbp*nbp 
+
+        # index - 1 = (q-1) + (p-1)*nbp
+
+        p = floor(Int64, (index-1)/nbp) + 1
+        q  = index  - (p-1)*nbp
+
+        lp = abs(m) + floor(Int64,(p-1)/nbn)
+        lq = abs(m) + floor(Int64,(q-1)/nbn)
+        
+
+        if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
+
+            np = p - 1 - (lp-abs(m))*nbn + n0
+            nq = q - 1 - (lq-abs(m))*nbn + n0
+
+            Wkp = tabWkp_temp[p,k]  
+            Wkq = tabWkp_temp[q,k]  
+
+            integrand = Wkp * Wkq * invden
+
+            tab_Mpq_par[index,id_thread] += integrand * jacu * jacv * jacz
+        end
+
+
+    end
+end
+
+
+# Sampling the frequencies on the pure imaginary numbers: omega = 0 + gamma i for gamma > 0
+function ResponseMatrix_m_alt_half(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    @assert (abs(m) <= mmax) "m must be less that m_max"
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbgrid = nbJ^3
+    nbk = (2*kmax+1)^2
+
+
+    dtJu = pi/2.0/nbJ
+    dtJv = pi/2.0/nbJ
+    dtLz = pi/nbJ
+
+    elem = [OrbitalElements_alt_half_init(nbt) for it=1:Threads.nthreads()]
+
+    freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+    grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+
+    tab_Mpq_par = [0.0 + 0.0im for index=1:nbp*nbp, it=1:Threads.nthreads()] 
+
+    tabWkp_temp = [zeros(Float64, nbp, nbk) for it=1:Threads.nthreads()] 
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+
+ 
+    # Fill the tables of Wkp
+
+    Threads.@threads for iJ=1:nbgrid
+
+        # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
+        # nbz = nbJ 
+        # nbv = nbJ 
+
+        # println("----")
+
+        iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
+        leftover = iJ - 1 - nbJ^2*(iu-1)
+
+        # leftover = iz-1 + nbz*(iv-1)
+        # nbz = nbJ 
+
+        iv = floor(Int64,leftover/nbJ) + 1
+        iz = leftover - nbJ*(iv-1) + 1
+
+        tJu = dtJu*(iu-0.5)
+        tJv = dtJv*(iv-0.5)
+        tLz = -pi/2.0 + dtLz*(iz-0.5)
+
+        Ju = tan(tJu)
+        Jv = tan(tJv)
+        Lz = tan(tLz)
+
+        jacu = (1.0+Ju^2)
+        jacv = (1.0+Jv^2)
+        jacz = (1.0+Lz^2)
+
+        # println("----")
+        E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+        u0, u1 = find_bounds_u(E,Lz,I3)
+        v0, v1 = find_bounds_v(E,Lz,I3)
+
+        id_thread = Threads.threadid()
+
+        fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+
+
+
+        dFdE = _dFdE(E,Lz)
+        dFdLz = _dFdLz(E,Lz)
+
+        dFdJu = dFdE * Omegau # dF/dJu = dF/dE dE/dJu + dF/dI3 dI3/dJu + dF/dLz dLz/dJu
+        dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
+        dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
+
+        
+        for p=1:nbp 
+
+            # nbn = nmax - n0 + 1
+            # p = n-n0 + nbn*(l-abs(m)) + 1
+            # p - 1 = n-n0 + nbn * l 
+
+            l = abs(m) + floor(Int64,(p-1)/nbn)
+            n = n0 + p - 1 - nbn * (l - abs(m))
+            
+            OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E,I3,Lz,u0,u1,v0,v1,grad_matrix[id_thread],nbt)
+            tabWkp_alt_half(p,l,tabWkp_temp[id_thread],tabWuWv[id_thread],m,elem[id_thread],freq_matrix[id_thread],nbk,nbt)
+           
+           
+        end
+
+
+        for k=1:nbk
+
+            tab_Mpq_par!(id_thread,tab_Mpq_par,tabWkp_temp[id_thread],omega,k,m,dFdJu,dFdJv,dFdLz,Omegau,Omegav,Omegaz,jacu,jacv,jacz,nbn,nbp,n0)
+
+        end
+
+
+    end
+
+    tab_Mpq = zeros(ComplexF64, nbp, nbp)
+
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        # index - 1 = (q-1) + (p-1)*nbp
+
+        p = floor(Int64, (index-1)/nbp) + 1
+        q  = index  - (p-1)*nbp
+
+
+        for it=1:Threads.nthreads()
+
+            tab_Mpq[p,q] += tab_Mpq_par[index,it]
+
+        end
+        tab_Mpq[p,q] *= pref
+       
+    end
+
+    return tab_Mpq
+end

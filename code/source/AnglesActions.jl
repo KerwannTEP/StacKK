@@ -20,10 +20,6 @@ function dUeffdu(u::Float64, Lz::Float64, I3::Float64)
     return -4.0*Lz^2*cosh(u)/(2.0*Delta^2*sinh(u)^5) + (sinh(u)*_dUdu(u) - (_U(u)+I3)*2.0*cosh(u))/sinh(u)^3
 
 
-
-
-
-
 end
 
 # Minimum energy E_s for an orbit with angular momentum Lz and third integrand I3 

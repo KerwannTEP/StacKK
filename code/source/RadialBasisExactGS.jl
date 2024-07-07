@@ -1,6 +1,6 @@
 using HDF5
 
-function Flmn_bare(xi::Float64, l::Int64, m::Int64, n::Int64)
+function Fn_bare(xi::Float64, n::Int64)
 
     Wrad = 1.0/(xi+1)
     flmn = 1.0
@@ -100,7 +100,7 @@ function Flmn(l::Int64, m::Int64, n::Int64, xi::Float64)
 
     for k=n0:nmax
 
-        flmn = Flmn_bare(xi,l,m,k)
+        flmn = Fn_bare(xi,k)
         sum += tab_YGS[id][k-n0+1,n-n0+1]*flmn 
     end
 
