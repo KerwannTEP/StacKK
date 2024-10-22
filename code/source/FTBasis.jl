@@ -1314,6 +1314,7 @@ function ResponseMatrix_m_alt_half(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_d
 
 
     epsJ = 0.01 # Action cutoff
+
     dtJu = pi/2.0*(1.0-epsJ)/nbJ
     dtJv = pi/2.0*(1.0-epsJ)/nbJ
     dtLz = pi*(1.0-epsJ)/nbJ
@@ -1351,7 +1352,7 @@ function ResponseMatrix_m_alt_half(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_d
 
         tJu = dtJu*(iu-0.5)
         tJv = dtJv*(iv-0.5)
-        tLz = -pi/2.0 +epsJ+ dtLz*(iz-0.5)
+        tLz = -pi/2.0+epsJ + dtLz*(iz-0.5)
 
         Ju = tan(tJu)
         Jv = tan(tJv)
@@ -1429,4 +1430,285 @@ function ResponseMatrix_m_alt_half(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_d
     end
 
     return tab_Mpq
+end
+
+
+
+
+
+################################################################################################################################################################
+################################################################################################################################################################
+################################################################################################################################################################
+
+
+function ResponseMatrix_m_sampling_alt_half_test(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    @assert (abs(m) <= mmax) "m must be less that m_max"
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbgrid = nbJ^3
+    nbk = (2*kmax+1)^2
+    nbomega = nbRe * nbIm 
+
+    dtJu = pi/2.0/nbJ
+    dtJv = pi/2.0/nbJ
+    dtLz = pi/nbJ
+
+    tab_omega = zeros(Float64, nbomega, 2) # (re, im)
+
+    for iomega=1:nbomega 
+
+        # iomega - 1 = im-1 + nbIm*(ire-1)
+
+        ire = floor(Int64,(iomega-1)/nbIm) + 1
+        iim = iomega - nbIm*(ire-1)
+
+        re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
+        im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
+
+        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega 
+    end
+
+
+    elem = [OrbitalElements_alt_half_init(nbt) for it=1:Threads.nthreads()]
+
+    freq_matrix = zeros(Float64, 3, 3)
+    grad_matrix = zeros(Float64, 3, 3)
+
+  
+
+    tab_Mpq_par = [0.0 + 0.0im for index=1:nbp*nbp, iomega=1:nbomega, it=1:Threads.nthreads()] 
+
+    tabWkp_temp = zeros(Float64, nbp, nbk)
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+
+    tab_E_Lz_I3 = zeros(Float64, nbgrid, 3)
+    tab_jac = zeros(Float64, nbgrid, 3)
+
+    Threads.@threads for iJ=1:nbgrid 
+
+        # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
+        # nbz = nbJ 
+        # nbv = nbJ 
+
+        iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
+        leftover = iJ - 1 - nbJ^2*(iu-1)
+
+        # leftover = iz-1 + nbz*(iv-1)
+        # nbz = nbJ 
+
+        iv = floor(Int64,leftover/nbJ) + 1
+        iz = leftover - nbJ*(iv-1) + 1
+
+        # Ju = Jumax/nbJ*(iu-0.5)
+        # Jv = Jvmax/nbJ*(iv-0.5)
+        # Lz = -Lzmax + 2.0*Lzmax/nbJ*(iz-0.5)
+
+        tJu = dtJu*(iu-0.5)
+        tJv = dtJv*(iv-0.5)
+        tLz = -pi/2.0 + dtLz*(iz-0.5)
+
+        Ju = tan(tJu)
+        Jv = tan(tJv)
+        Lz = tan(tLz)
+
+        jacu = (1.0+Ju^2)
+        jacv = (1.0+Jv^2)
+        jacz = (1.0+Lz^2)
+
+        tab_jac[iJ, 1], tab_jac[iJ, 2], tab_jac[iJ, 3] = jacu, jacv, jacz
+
+        E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+        tab_E_Lz_I3[iJ, 1], tab_E_Lz_I3[iJ, 2], tab_E_Lz_I3[iJ, 3] = E, Lz, I3
+
+
+    end
+
+
+    # Maybe use different nbJu, nbJv, nbLz
+    for iJ=1:nbgrid 
+
+        # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
+        # nbz = nbJ 
+        # nbv = nbJ 
+
+        # iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
+        # leftover = iJ - 1 - nbJ^2*(iu-1)
+
+        # # leftover = iz-1 + nbz*(iv-1)
+        # # nbz = nbJ 
+
+        # iv = floor(Int64,leftover/nbJ) + 1
+        # iz = leftover - nbJ*(iv-1) + 1
+
+        # # Ju = Jumax/nbJ*(iu-0.5)
+        # # Jv = Jvmax/nbJ*(iv-0.5)
+        # # Lz = -Lzmax + 2.0*Lzmax/nbJ*(iz-0.5)
+
+        # tJu = dtJu*(iu-0.5)
+        # tJv = dtJv*(iv-0.5)
+        # tLz = -pi/2.0 + dtLz*(iz-0.5)
+
+        # Ju = tan(tJu)
+        # Jv = tan(tJv)
+        # Lz = tan(tLz)
+
+        # jacu = (1.0+Ju^2)
+        # jacv = (1.0+Jv^2)
+        # jacz = (1.0+Lz^2)
+
+        jacu, jacv, jacz = tab_jac[iJ, 1], tab_jac[iJ, 2], tab_jac[iJ, 3]
+
+
+
+        E, Lz, I3 = tab_E_Lz_I3[iJ, 1], tab_E_Lz_I3[iJ, 2], tab_E_Lz_I3[iJ, 3] #E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+        u0, u1 = find_bounds_u(E,Lz,I3)
+        v0, v1 = find_bounds_v(E,Lz,I3)
+
+        
+
+          fill_grad_frequency_matrix!(grad_matrix,freq_matrix,E,Lz,I3)
+        # trans_freq = transpose(freq_matrix[id_thread])
+        Omegau, Omegav, Omegaz = freq_matrix[1,1], freq_matrix[1,2], freq_matrix[1,3]  
+
+
+
+        dFdE = _dFdE(E,Lz)
+        dFdLz = _dFdLz(E,Lz)
+
+        dFdJu = dFdE * Omegau # dF/dJu = dF/dE dE/dJu + dF/dI3 dI3/dJu + dF/dLz dLz/dJu
+        dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
+        dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
+
+       
+
+        Threads.@threads for p=1:nbp 
+
+            # nbn = nmax - n0 + 1
+            # p = n-n0 + nbn*(l-abs(m)) + 1
+            # p - 1 = n-n0 + nbn * l 
+
+            l = abs(m) + floor(Int64,(p-1)/nbn)
+            n = n0 + p - 1 - nbn * (l - abs(m))
+            
+            id_thread = Threads.threadid()
+
+            OrbitalElements_alt_half_update!(elem[id_thread],l,m,n,E,I3,Lz,u0,u1,v0,v1,grad_matrix,nbt)
+             tabWkp_alt_half(p,l,tabWkp_temp,tabWuWv[id_thread],m,elem[id_thread],freq_matrix,nbk,nbt)
+           
+           
+        end
+
+
+
+        Threads.@threads for kind=1:nbk*nbp*nbp
+
+            # kind-1 = k-1 + (index-1)*nbk
+
+            index = floor(Int64, (kind-1)/nbk) + 1
+            k = kind - (index-1)*nbk
+
+        # for k=1:nbk
+
+            # nbkline = 2*kmax+1
+            # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
+            
+            k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
+            k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
+
+            kdotdF = k1*dFdJu + k2*dFdJv + m*dFdLz
+                        
+            kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+            
+            # println((omega,invden))
+
+            # for index=1:nbp*nbp 
+
+                # index - 1 = (q-1) + (p-1)*nbp
+
+                p = floor(Int64, (index-1)/nbp) + 1
+                q  = index  - (p-1)*nbp
+
+                id_thread = Threads.threadid()
+                
+
+                lp = abs(m) + floor(Int64,(p-1)/nbn)
+                lq = abs(m) + floor(Int64,(q-1)/nbn)
+
+                # Should use parity of l+m+k2 here ?
+                # if (mod(lp+m+k2,2) == 0 && mod(lq+m+k2,2) == 0 )
+
+                if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
+
+                    Wkp = tabWkp_temp[p,k]  
+                    Wkq = tabWkp_temp[q,k] 
+                    
+                    for iomega=1:nbomega
+
+                        re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
+                        omega = re_omega + 1.0im*im_omega
+                        invden = kdotdF/(omega-kdotOmega)
+                        integrand = Wkp * Wkq * invden
+
+                        tab_Mpq_par[index,iomega,id_thread] += integrand * jacu * jacv * jacz
+                    end
+
+                end
+
+            # end
+
+
+        end
+
+        
+
+
+
+        # println("-----")
+
+
+    end
+
+    tab_Mpq = zeros(ComplexF64, nbp, nbp, nbomega)
+
+ 
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+ 
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        # index - 1 = (q-1) + (p-1)*nbp
+
+        p = floor(Int64, (index-1)/nbp) + 1
+        q  = index  - (p-1)*nbp
+
+        for iomega=1:nbomega
+            
+
+            # tab_Mpq[p,q,iomega] = tab_Mpq_par_re[index,iomega][] + 1im*tab_Mpq_par_im[index,iomega][]
+
+            for it=1:Threads.nthreads()
+
+                # tab_Mpq[p,q,iomega] += tab_Mpq_par_re_par[index,iomega,it] + 1im*tab_Mpq_par_im_par[index,iomega,it]
+                tab_Mpq[p,q,iomega] +=tab_Mpq_par[index,iomega,it]
+
+            end
+            tab_Mpq[p,q,iomega] *= pref
+        end
+    end
+
+    # pt=plot([tab_integrand[1:nbJ_default,1] tab_integrand[1:nbJ_default,2]])
+    # savefig(pt, "integrand.png")
+
+    return tab_Mpq, tab_omega
 end

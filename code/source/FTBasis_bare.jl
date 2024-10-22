@@ -4,9 +4,9 @@
 
 function increment_Wu_bare!(m::Int64, tabWuWv::Matrix{Float64}, pref::Float64, Jacu::Float64, alpha_1::Float64, alpha_2::Float64, alpha_3::Float64) #, tab_ang_k1::Array{ComplexF64}, tab_ang_k2::Array{ComplexF64})
 
-    sinalpha1, cosalpha1 = sincos(alpha_1)
-    sinalpha2, cosalpha2 = sincos(alpha_2)
-    sinmalpha3, cosmalpha3 = sincos(m*alpha_3)
+    @fastmath sinalpha1, cosalpha1 = sincos(alpha_1)
+    @fastmath sinalpha2, cosalpha2 = sincos(alpha_2)
+    @fastmath sinmalpha3, cosmalpha3 = sincos(m*alpha_3)
 
 
     cosalphak1 = 1.0
@@ -75,9 +75,9 @@ end
 
 function increment_Wv_bare!(m::Int64, l::Int64, tabWuWv::Matrix{Float64}, pref::Float64, Jacv::Float64, beta_1::Float64, beta_2::Float64, beta_3::Float64)
 
-    sinbeta1, cosbeta1 = sincos(beta_1)
-    sinbeta2, cosbeta2 = sincos(beta_2)
-    sinmbeta3, cosmbeta3 = sincos(m*beta_3)
+    @fastmath sinbeta1, cosbeta1 = sincos(beta_1)
+    @fastmath sinbeta2, cosbeta2 = sincos(beta_2)
+    @fastmath sinmbeta3, cosmbeta3 = sincos(m*beta_3)
 
     # for k=1:kmax
     #     tab_ang_k1[k+1] =  tab_ang_k1[k]*i_alpha1
@@ -156,7 +156,7 @@ function tabWu_kn_bare!(n::Int64, n0::Int64, tabWu_kn::Matrix{Float64}, tabWuJ_k
     
 
  
-    for k=1:nbk
+    @inbounds for k=1:nbk
         tabWuWv[k,1] = 0.0  
         tabWuWv[k,2] = 0.0  
         
@@ -168,7 +168,7 @@ function tabWu_kn_bare!(n::Int64, n0::Int64, tabWu_kn::Matrix{Float64}, tabWuJ_k
 
     indexu = 1
 
-     for iu=1:nbt 
+    @inbounds for iu=1:nbt 
 
         # Step 1
         Flmn_u = elem.tab_Fn[indexu]
@@ -252,7 +252,7 @@ function tabWu_kn_bare!(n::Int64, n0::Int64, tabWu_kn::Matrix{Float64}, tabWuJ_k
         
     end
 
-    for k=1:nbk 
+    @inbounds for k=1:nbk 
 
         tabWu_kn[n-n0+1,k] = tabWuWv[k,1]
         tabWuJ_kn[n-n0+1,k] = tabWuWv[k,2]
@@ -274,7 +274,7 @@ function tabWv_kl_bare!(l::Int64, tabWv_kl::Matrix{Float64}, tabWvJ_kl::Matrix{F
     beta_2 = pi*0.5
     beta_3 = 0.0
 
-    for k=1:nbk
+    @inbounds for k=1:nbk
         tabWuWv[k,3] = 0.0  
         tabWuWv[k,4] = 0.0  
 
@@ -282,7 +282,7 @@ function tabWv_kl_bare!(l::Int64, tabWv_kl::Matrix{Float64}, tabWvJ_kl::Matrix{F
 
 
     indexv = 1
-     for iv=1:nbt 
+    @inbounds for iv=1:nbt 
 
         # Step 1
         ylm_v = elem.tab_ylm[indexv]
@@ -372,7 +372,7 @@ function tabWv_kl_bare!(l::Int64, tabWv_kl::Matrix{Float64}, tabWvJ_kl::Matrix{F
 
     # println("---")
 
-    for k=1:nbk 
+    @inbounds for k=1:nbk 
 
         tabWvJ_kl[l-abs(m)+1,k] = tabWuWv[k,3]
         tabWv_kl[l-abs(m)+1,k] = tabWuWv[k,4]
@@ -441,6 +441,8 @@ function tab_Mpq_bare_par!(id_thread::Int64, tab_Mpq_par::Matrix{ComplexF64}, ta
         end
     end
 
+    
+
 end
 
 
@@ -498,7 +500,6 @@ function ResponseMatrix_m_bare(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_defau
     nbp = nbl * nbn
     nbgrid = nbJ^3
     nbk = (2*kmax+1)^2
-
 
     epsJ = 0.01 # Action cutoff
 
@@ -587,6 +588,8 @@ function ResponseMatrix_m_bare(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_defau
 
     end
 
+    
+
     tab_Mpq_bare = zeros(ComplexF64, nbp, nbp)
 
     pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
@@ -599,6 +602,128 @@ function ResponseMatrix_m_bare(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_defau
 
     return tab_Mpq_bare
 end
+
+
+
+
+function ResponseMatrix_m_bare_separate(m::Int64, omega::ComplexF64, nbJu::Int64=nbJ_default, nbJv::Int64=nbJ_default, nbLz::Int64=25, nbt::Int64=nbt_default)
+
+    @assert (abs(m) <= mmax) "m must be less that m_max"
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbgrid = nbJu*nbJv*nbLz
+    nbk = (2*kmax+1)^2
+
+    epsJ = 0.01 # Action cutoff
+
+    dtJu = pi/2.0*(1.0-epsJ)/nbJu
+    dtJv = pi/2.0*(1.0-epsJ)/nbJv
+    dtLz = pi*(1.0-epsJ)/nbLz
+
+    elem = [OrbitalElements_bare_init(nbt) for it=1:Threads.nthreads()]
+
+    freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+    grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+
+    tab_Mpq_bare_par = [0.0 + 0.0im for index=1:nbp*nbp, it=1:Threads.nthreads()] 
+
+    tabWkp_temp = [zeros(Float64, nbp, nbk) for it=1:Threads.nthreads()] 
+
+    tabWu_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+    tabWuJ_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+
+    tabWv_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+    tabWvJ_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+
+ 
+    # Fill the tables of Wkp
+
+    Threads.@threads for iJ=1:nbgrid
+
+        # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
+        # nbz = nbJ 
+        # nbv = nbJ 
+
+        # println("----")
+
+        iu = floor(Int64,(iJ - 1)/(nbJv*nbLz)) + 1
+        leftover = iJ - 1 - nbJv*nbLz*(iu-1)
+
+        # leftover = iz-1 + nbz*(iv-1)
+        # nbz = nbJ 
+
+        iv = floor(Int64,leftover/nbLz) + 1
+        iz = leftover - nbLz*(iv-1) + 1
+
+        tJu = dtJu*(iu-0.5)
+        tJv = dtJv*(iv-0.5)
+        tLz = -pi/2.0+epsJ + dtLz*(iz-0.5)
+
+        Ju = tan(tJu)
+        Jv = tan(tJv)
+        Lz = tan(tLz)
+
+        jacu = (1.0+Ju^2)
+        jacv = (1.0+Jv^2)
+        jacz = (1.0+Lz^2)
+
+        # println("----")
+
+        E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+        u0, u1 = find_bounds_u(E,Lz,I3)
+        v0, v1 = find_bounds_v(E,Lz,I3)
+
+        id_thread = Threads.threadid()
+
+        fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
+        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+
+
+        dFdE = _dFdE(E,Lz)
+        dFdLz = _dFdLz(E,Lz)
+
+        dFdJu = dFdE * Omegau # dF/dJu = dF/dE dE/dJu + dF/dI3 dI3/dJu + dF/dLz dLz/dJu
+        dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
+        dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
+
+        fill_W!(elem[id_thread],E,I3,Lz,u0,u1,grad_matrix[id_thread],nbt,n0,tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWuWv[id_thread],m,freq_matrix[id_thread],nbk,v0,v1,tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread])
+
+
+        # invert k and pq sum ?
+        for k=1:nbk
+
+            tab_Mpq_bare_par!(id_thread,tab_Mpq_bare_par,tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread],omega,k,m,dFdJu,dFdJv,dFdLz,Omegau,Omegav,Omegaz,jacu,jacv,jacz,nbn,nbp,n0)
+
+        end
+
+    end
+
+    
+
+    tab_Mpq_bare = zeros(ComplexF64, nbp, nbp)
+
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        tab_Mpq_bare!(index,tab_Mpq_bare,tab_Mpq_bare_par,nbp,pref)
+       
+    end
+
+    return tab_Mpq_bare
+end
+
+
 
 function compute_tab_Mpq!(m::Int64, n0::Int64, index::Int64, nbn::Int64, nbp::Int64, 
                         tab_Mpq::Matrix{ComplexF64}, tab_Mpq_bare::Matrix{ComplexF64})
@@ -621,15 +746,17 @@ function compute_tab_Mpq!(m::Int64, n0::Int64, index::Int64, nbn::Int64, nbp::In
     for i=n0:nmax
 
         p_i = 1 + (lp - abs(m))*nbn + i-n0
+        coefGS_i = tab_YGS[id_p][i-n0+1,np-n0+1]
 
         for j=n0:nmax
 
             q_j = 1 + (lq - abs(m))*nbn + j-n0
+            coefGS_j = tab_YGS[id_q][j-n0+1,nq-n0+1]
 
             M_pi_qj_bare = tab_Mpq_bare[p_i,q_j]
         
             # Delta because of normalization of bi-orthogonal basis elements
-            tab_Mpq[p,q] += tab_YGS[id_p][i-n0+1,np-n0+1]*tab_YGS[id_q][j-n0+1,nq-n0+1]*M_pi_qj_bare*Delta
+            tab_Mpq[p,q] += coefGS_i*coefGS_j*M_pi_qj_bare*Delta
         end
 
     end
@@ -667,10 +794,36 @@ function ResponseMatrix_m_GS(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_default
 
 end
 
+function ResponseMatrix_m_GS_separate(m::Int64, omega::ComplexF64, nbJu::Int64=nbJ_default, nbJv::Int64=nbJ_default, nbLz::Int64=80, nbt::Int64=nbt_default)
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+
+    tab_Mpq_bare = ResponseMatrix_m_bare_separate(m,omega,nbJu,nbJv,nbLz,nbt)
+
+
+    tab_Mpq = zeros(ComplexF64, nbp, nbp)
+
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        compute_tab_Mpq!(m,n0,index,nbn,nbp,tab_Mpq,tab_Mpq_bare)
+
+    end
+
+    return tab_Mpq
+
+end
 
 
 
-function tab_Mpq_bare_par_sampling!(tab_Mpq_par::Matrix{ComplexF64}, tabWu_kn_temp::Matrix{Float64}, tabWuJ_kn_temp::Matrix{Float64}, tabWv_kl_temp::Matrix{Float64}, tabWvJ_kl_temp::Matrix{Float64}, 
+function tab_Mpq_bare_par_sampling!(tab_Mpq_par::Matrix{ComplexF64}, tab_W_temp::Vector{Float64}, tabWu_kn_temp::Matrix{Float64}, tabWuJ_kn_temp::Matrix{Float64}, tabWv_kl_temp::Matrix{Float64}, tabWvJ_kl_temp::Matrix{Float64}, 
                                     tab_omega::Matrix{Float64}, nbomega::Int64, k::Int64, m::Int64, dFdJu::Float64, dFdJv::Float64, dFdLz::Float64, Omegau::Float64, Omegav::Float64, Omegaz::Float64, jacu::Float64, 
                                     jacv::Float64, jacz::Float64, nbn::Int64, nbp::Int64, n0::Int64)
 
@@ -685,48 +838,56 @@ function tab_Mpq_bare_par_sampling!(tab_Mpq_par::Matrix{ComplexF64}, tabWu_kn_te
     kdotdF = k1*dFdJu + k2*dFdJv + m*dFdLz
     kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
 
-    # for iomega=1:nbomega
 
-    #     re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
-    #     omega = re_omega + 1.0im*im_omega
+    for p=1:nbp 
 
-    
-
-    #     invden = kdotdF/(omega-kdotOmega) * jacu * jacv * jacz
-
-
-        for p=1:nbp 
-
-            lp = abs(m) + floor(Int64,(p-1)/nbn)
+        lp = abs(m) + floor(Int64,(p-1)/nbn)
+        if (mod(lp+m+k2,2)==0)
             np = p - 1 - (lp-abs(m))*nbn + n0
-            Wkp = tabWu_kn_temp[np-n0+1,k]*tabWvJ_kl_temp[lp-abs(m)+1,k] + tabWuJ_kn_temp[np-n0+1,k]*tabWv_kl_temp[lp-abs(m)+1,k] 
+            @inbounds Wkp = tabWu_kn_temp[np-n0+1,k]*tabWvJ_kl_temp[lp-abs(m)+1,k] + tabWuJ_kn_temp[np-n0+1,k]*tabWv_kl_temp[lp-abs(m)+1,k] 
+            tab_W_temp[p] = Wkp 
+        end
+    end
+
+ 
+    for p=1:nbp 
+
+        lp = abs(m) + floor(Int64,(p-1)/nbn)
+
+        if (mod(lp+m+k2,2)==0)
+
+            # np = p - 1 - (lp-abs(m))*nbn + n0
+            
+            Wkp = tab_W_temp[p]
+
+            pref = Wkp * kdotdF * jacu * jacv * jacz 
+
 
             for q=1:p-1
 
                 lq = abs(m) + floor(Int64,(q-1)/nbn)
                 
-                if (mod(lp+m+k2,2)==0 && mod(lq+m+k2,2)==0)
+                if (mod(lq+m+k2,2)==0)
 
-                    nq = q - 1 - (lq-abs(m))*nbn + n0
-                    Wkq = tabWu_kn_temp[nq-n0+1,k]*tabWvJ_kl_temp[lq-abs(m)+1,k] + tabWuJ_kn_temp[nq-n0+1,k]*tabWv_kl_temp[lq-abs(m)+1,k] 
+                    # nq = q - 1 - (lq-abs(m))*nbn + n0
+                    Wkq = tab_W_temp[q]
+                    
+                    
                     index = 1 + (q-1) + (p-1)*nbp
                     indexSym = 1 + (p-1) + (q-1)*nbp
 
+
                     for iomega=1:nbomega
 
-                        re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
+                        @inbounds re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
                         omega = re_omega + 1.0im*im_omega
                 
-                    
-                
-                        invden = kdotdF/(omega-kdotOmega) * jacu * jacv * jacz
+                        den = (omega-kdotOmega) 
+                        integrand = pref * Wkq / den
 
-                        integrand = Wkp * Wkq * invden
-
-                        tab_Mpq_par[index,iomega] += integrand 
-                        tab_Mpq_par[indexSym,iomega] += integrand 
+                        @inbounds tab_Mpq_par[iomega,index] += integrand 
+                        @inbounds tab_Mpq_par[iomega,indexSym] += integrand 
                     end
-
 
                 end
 
@@ -734,28 +895,24 @@ function tab_Mpq_bare_par_sampling!(tab_Mpq_par::Matrix{ComplexF64}, tabWu_kn_te
 
             # case p=q
 
-            if (mod(lp+m+k2,2)==0)
+            index = 1 + (p-1) + (p-1)*nbp     
 
-                index = 1 + (p-1) + (p-1)*nbp
-                
+            for iomega=1:nbomega
 
-                for iomega=1:nbomega
+                @inbounds re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
+                omega = re_omega + 1.0im*im_omega
+        
+                den = (omega-kdotOmega) 
+                integrand = Wkp * Wkp * kdotdF * jacu * jacv * jacz / den
 
-                    re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
-                    omega = re_omega + 1.0im*im_omega
-            
-                
-            
-                    invden = kdotdF/(omega-kdotOmega) * jacu * jacv * jacz
-
-                    integrand = Wkp * Wkp * invden 
-
-                    tab_Mpq_par[index,iomega] += integrand 
-                end
-
+                @inbounds tab_Mpq_par[iomega,index] += integrand 
             end
+
+
         end
-    # end
+
+    end
+
 
 end
 
@@ -769,11 +926,10 @@ function tab_Mpq_bare_sampling!(index::Int64, tab_Mpq_bare::Array{ComplexF64, 3}
     for iomega=1:nbomega
 
         for it=1:Threads.nthreads()
-
-            tab_Mpq_bare[p,q,iomega] += tab_Mpq_bare_par[it][index,iomega]
+            @inbounds tab_Mpq_bare[p,q,iomega] += tab_Mpq_bare_par[it][iomega,index]
 
         end
-        tab_Mpq_bare[p,q,iomega] *= pref
+        @inbounds tab_Mpq_bare[p,q,iomega] *= pref
 
     end
 
@@ -829,12 +985,21 @@ function ResponseMatrix_m_bare_sampling(m::Int64, re_omega_min::Float64, re_omeg
     dtJv = pi/2.0*(1.0-epsJ)/nbJ
     dtLz = pi*(1.0-epsJ)/nbJ
 
+    # dtJu = Jumax/nbJ
+    # dtJv = Jvmax/nbJ
+    # dtLz = 2.0*Lzmax/nbJ
+
+
+
+
+
     elem = [OrbitalElements_bare_init(nbt) for it=1:Threads.nthreads()]
 
     freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
     grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
 
-    tab_Mpq_bare_par = [zeros(ComplexF64, nbp*nbp, nbomega) for it=1:Threads.nthreads()] 
+    # tab_Mpq_bare_par = [zeros(ComplexF64, nbp*nbp, nbomega) for it=1:Threads.nthreads()] 
+    tab_Mpq_bare_par = [zeros(ComplexF64, nbomega, nbp*nbp) for it=1:Threads.nthreads()] 
 
     tabWu_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
     tabWuJ_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
@@ -844,6 +1009,7 @@ function ResponseMatrix_m_bare_sampling(m::Int64, re_omega_min::Float64, re_omeg
 
     tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
 
+    tab_W_temp = [zeros(Float64, nbp) for it=1:Threads.nthreads()] 
  
     # Fill the tables of Wkp
 
@@ -864,6 +1030,10 @@ function ResponseMatrix_m_bare_sampling(m::Int64, re_omega_min::Float64, re_omeg
         iv = floor(Int64,leftover/nbJ) + 1
         iz = leftover - nbJ*(iv-1) + 1
 
+
+
+
+
         tJu = dtJu*(iu-0.5)
         tJv = dtJv*(iv-0.5)
         tLz = -pi/2.0 + epsJ + dtLz*(iz-0.5)
@@ -876,6 +1046,19 @@ function ResponseMatrix_m_bare_sampling(m::Int64, re_omega_min::Float64, re_omeg
         jacv = (1.0+Jv^2)
         jacz = (1.0+Lz^2)
 
+
+        # Ju = dtJu*(iu-0.5)
+        # Jv = dtJv*(iv-0.5)
+        # Lz = -Lzmax + dtLz*(iz-0.5)
+
+        # jacu = 1.0
+        # jacv = 1.0
+        # jacz = 1.0
+
+
+
+
+
         # println("----")
 
         E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
@@ -886,7 +1069,7 @@ function ResponseMatrix_m_bare_sampling(m::Int64, re_omega_min::Float64, re_omeg
         id_thread = Threads.threadid()
 
         fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
-        Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+        @inbounds Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
 
 
         dFdE = _dFdE(E,Lz)
@@ -899,10 +1082,8 @@ function ResponseMatrix_m_bare_sampling(m::Int64, re_omega_min::Float64, re_omeg
         fill_W!(elem[id_thread],E,I3,Lz,u0,u1,grad_matrix[id_thread],nbt,n0,tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWuWv[id_thread],m,freq_matrix[id_thread],nbk,v0,v1,tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread])
 
 
-        # invert k and pq sum ?
         for k=1:nbk
-
-            tab_Mpq_bare_par_sampling!(tab_Mpq_bare_par[id_thread],tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread],tab_omega,nbomega,k,m,dFdJu,dFdJv,dFdLz,Omegau,Omegav,Omegaz,jacu,jacv,jacz,nbn,nbp,n0)
+            tab_Mpq_bare_par_sampling!(tab_Mpq_bare_par[id_thread],tab_W_temp[id_thread],tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread],tab_omega,nbomega,k,m,dFdJu,dFdJv,dFdLz,Omegau,Omegav,Omegaz,jacu,jacv,jacz,nbn,nbp,n0)
 
         end
 
@@ -993,3 +1174,827 @@ function ResponseMatrix_m_GS_sampling(m::Int64, re_omega_min::Float64, re_omega_
 
 end
 
+
+
+
+
+##############################################
+
+
+
+function ResponseMatrix_m_bare_sampling_split(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
+    nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    @assert (abs(m) <= mmax) "m must be less that m_max"
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbgrid = nbJ^3
+    nbk = (2*kmax+1)^2
+    nbomega = nbRe * nbIm 
+
+    tab_omega = zeros(Float64, nbomega, 2) # (re, im)
+
+    for iomega=1:nbomega 
+
+    # iomega - 1 = im-1 + nbIm*(ire-1)
+
+        ire = floor(Int64,(iomega-1)/nbIm) + 1
+        iim = iomega - nbIm*(ire-1)
+
+        if (nbRe > 1)
+            re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
+        else
+            re_omega = re_omega_min
+        end
+
+        if (nbIm > 1)
+            im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
+        else
+            im_omega = im_omega_min
+        end
+
+        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega 
+    end
+
+
+    epsJ = 0.01 # Action cutoff
+
+    dtJu = pi/2.0*(1.0-epsJ)/nbJ
+    dtJv = pi/2.0*(1.0-epsJ)/nbJ
+    dtLz = pi*(1.0-epsJ)/nbJ
+
+    elem = [OrbitalElements_bare_init(nbt) for it=1:Threads.nthreads()]
+
+    freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+    grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+
+    # tab_Mpq_bare_par = [zeros(ComplexF64, nbp*nbp, nbomega) for it=1:Threads.nthreads()] 
+    tab_Mpq_bare_par = [zeros(ComplexF64, nbomega, nbp*nbp) for it=1:Threads.nthreads()] 
+
+    tabWu_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+    tabWuJ_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+
+    tabWv_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+    tabWvJ_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+
+    tab_W_temp = [zeros(Float64, nbp) for it=1:Threads.nthreads()] 
+
+    # Fill the tables of Wkp
+
+    Threads.@threads for iJ=iJmin_default:iJmax_default
+
+        # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
+        # nbz = nbJ 
+        # nbv = nbJ 
+
+        # println("----")
+
+        iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
+        leftover = iJ - 1 - nbJ^2*(iu-1)
+
+        # leftover = iz-1 + nbz*(iv-1)
+        # nbz = nbJ 
+
+        iv = floor(Int64,leftover/nbJ) + 1
+        iz = leftover - nbJ*(iv-1) + 1
+
+        tJu = dtJu*(iu-0.5)
+        tJv = dtJv*(iv-0.5)
+        tLz = -pi/2.0 + epsJ + dtLz*(iz-0.5)
+
+        Ju = tan(tJu)
+        Jv = tan(tJv)
+        Lz = tan(tLz)
+
+        jacu = (1.0+Ju^2)
+        jacv = (1.0+Jv^2)
+        jacz = (1.0+Lz^2)
+
+        # println("----")
+
+        E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+        u0, u1 = find_bounds_u(E,Lz,I3)
+        v0, v1 = find_bounds_v(E,Lz,I3)
+
+        id_thread = Threads.threadid()
+
+        fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
+        @inbounds Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+
+
+        dFdE = _dFdE(E,Lz)
+        dFdLz = _dFdLz(E,Lz)
+
+        dFdJu = dFdE * Omegau # dF/dJu = dF/dE dE/dJu + dF/dI3 dI3/dJu + dF/dLz dLz/dJu
+        dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
+        dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
+
+        fill_W!(elem[id_thread],E,I3,Lz,u0,u1,grad_matrix[id_thread],nbt,n0,tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWuWv[id_thread],m,freq_matrix[id_thread],nbk,v0,v1,tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread])
+
+
+        for k=1:nbk
+            tab_Mpq_bare_par_sampling!(tab_Mpq_bare_par[id_thread],tab_W_temp[id_thread],tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread],tab_omega,nbomega,k,m,dFdJu,dFdJv,dFdLz,Omegau,Omegav,Omegaz,jacu,jacv,jacz,nbn,nbp,n0)
+
+        end
+
+    end
+
+    tab_Mpq_bare = zeros(ComplexF64, nbp, nbp, nbomega)
+
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        tab_Mpq_bare_sampling!(index,tab_Mpq_bare,tab_Mpq_bare_par,nbp,nbomega,pref)
+
+    end
+
+    return tab_Mpq_bare, tab_omega
+end
+
+
+function ResponseMatrix_m_GS_sampling_split(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
+    nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbomega = nbRe * nbIm 
+
+    tab_Mpq_bare, tab_omega = ResponseMatrix_m_bare_sampling_split(m,re_omega_min,re_omega_max,im_omega_min,im_omega_max,nbRe,nbIm,nbJ,nbt)
+
+
+    tab_Mpq = zeros(ComplexF64, nbp, nbp, nbomega)
+
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        compute_tab_Mpq_sampling!(m,n0,index,nbn,nbp,tab_Mpq,tab_Mpq_bare,nbomega)
+
+    end
+
+    return tab_Mpq, tab_omega
+
+end
+
+################################################################################################################################
+################################################################################################################################
+################################################################################################################################
+
+# M_pq(omega, t) finite time
+
+function KernelGt(t::Float64, u::ComplexF64)
+
+    
+    if (u*t != 0.0)
+        return (1.0-exp(1.0im*u*t))/u
+
+    else
+        return -1.0im*t
+    end
+end
+
+
+
+function tab_Mpq_FiniteT_bare_par_sampling!(t::Float64, tab_Mpq_par::Matrix{ComplexF64}, tab_W_temp::Vector{Float64}, tabWu_kn_temp::Matrix{Float64}, tabWuJ_kn_temp::Matrix{Float64}, tabWv_kl_temp::Matrix{Float64}, tabWvJ_kl_temp::Matrix{Float64}, 
+                        tab_omega::Matrix{Float64}, nbomega::Int64, k::Int64, m::Int64, dFdJu::Float64, dFdJv::Float64, dFdLz::Float64, Omegau::Float64, Omegav::Float64, Omegaz::Float64, jacu::Float64, 
+                        jacv::Float64, jacz::Float64, nbn::Int64, nbp::Int64, n0::Int64)
+
+    # nbkline = 2*kmax+1
+    # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
+
+
+
+    k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
+    k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
+
+    kdotdF = k1*dFdJu + k2*dFdJv + m*dFdLz
+    kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+
+    for p=1:nbp 
+
+        lp = abs(m) + floor(Int64,(p-1)/nbn)
+        if (mod(lp+m+k2,2)==0)
+            np = p - 1 - (lp-abs(m))*nbn + n0
+            @inbounds Wkp = tabWu_kn_temp[np-n0+1,k]*tabWvJ_kl_temp[lp-abs(m)+1,k] + tabWuJ_kn_temp[np-n0+1,k]*tabWv_kl_temp[lp-abs(m)+1,k] 
+            tab_W_temp[p] = Wkp 
+        end
+    end
+
+
+    for p=1:nbp 
+
+        lp = abs(m) + floor(Int64,(p-1)/nbn)
+
+        if (mod(lp+m+k2,2)==0)
+
+            # np = p - 1 - (lp-abs(m))*nbn + n0
+
+            Wkp = tab_W_temp[p]
+
+            pref = Wkp * kdotdF * jacu * jacv * jacz 
+
+
+            for q=1:p-1
+
+                lq = abs(m) + floor(Int64,(q-1)/nbn)
+
+                if (mod(lq+m+k2,2)==0)
+
+                    # nq = q - 1 - (lq-abs(m))*nbn + n0
+                    Wkq = tab_W_temp[q]
+
+
+                    index = 1 + (q-1) + (p-1)*nbp
+                    indexSym = 1 + (p-1) + (q-1)*nbp
+
+
+                    for iomega=1:nbomega
+
+                        @inbounds re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
+                        omega = re_omega + 1.0im*im_omega
+
+                        den = (omega-kdotOmega) 
+                        integrand = pref * Wkq  * KernelGt(t,den)
+
+                        @inbounds tab_Mpq_par[iomega,index] += integrand 
+                        @inbounds tab_Mpq_par[iomega,indexSym] += integrand 
+                    end
+
+                end
+
+            end
+
+            # case p=q
+
+            index = 1 + (p-1) + (p-1)*nbp     
+
+            for iomega=1:nbomega
+
+                @inbounds re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
+                omega = re_omega + 1.0im*im_omega
+
+                den = (omega-kdotOmega) 
+                integrand = Wkp * Wkp * kdotdF * jacu * jacv * jacz * KernelGt(t,den)
+
+                @inbounds tab_Mpq_par[iomega,index] += integrand 
+            end
+
+
+        end
+
+    end
+
+
+end
+
+function ResponseMatrix_FiniteTime_m_bare_sampling_split(t::Float64, m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
+    nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    @assert (abs(m) <= mmax) "m must be less that m_max"
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbgrid = nbJ^3
+    nbk = (2*kmax+1)^2
+    nbomega = nbRe * nbIm 
+
+    tab_omega = zeros(Float64, nbomega, 2) # (re, im)
+
+    for iomega=1:nbomega 
+
+    # iomega - 1 = im-1 + nbIm*(ire-1)
+
+        ire = floor(Int64,(iomega-1)/nbIm) + 1
+        iim = iomega - nbIm*(ire-1)
+
+        if (nbRe > 1)
+            re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
+        else
+            re_omega = re_omega_min
+        end
+
+        if (nbIm > 1)
+            im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
+        else
+            im_omega = im_omega_min
+        end
+
+        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega 
+    end
+
+
+    epsJ = 0.01 # Action cutoff
+
+    dtJu = pi/2.0*(1.0-epsJ)/nbJ
+    dtJv = pi/2.0*(1.0-epsJ)/nbJ
+    dtLz = pi*(1.0-epsJ)/nbJ
+
+    elem = [OrbitalElements_bare_init(nbt) for it=1:Threads.nthreads()]
+
+    freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+    grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+
+    # tab_Mpq_bare_par = [zeros(ComplexF64, nbp*nbp, nbomega) for it=1:Threads.nthreads()] 
+    tab_Mpq_bare_par = [zeros(ComplexF64, nbomega, nbp*nbp) for it=1:Threads.nthreads()] 
+
+    tabWu_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+    tabWuJ_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+
+    tabWv_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+    tabWvJ_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+
+    tab_W_temp = [zeros(Float64, nbp) for it=1:Threads.nthreads()] 
+
+    # Fill the tables of Wkp
+
+    Threads.@threads for iJ=iJmin_default:iJmax_default
+
+        # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
+        # nbz = nbJ 
+        # nbv = nbJ 
+
+        # println("----")
+
+        iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
+        leftover = iJ - 1 - nbJ^2*(iu-1)
+
+        # leftover = iz-1 + nbz*(iv-1)
+        # nbz = nbJ 
+
+        iv = floor(Int64,leftover/nbJ) + 1
+        iz = leftover - nbJ*(iv-1) + 1
+
+        tJu = dtJu*(iu-0.5)
+        tJv = dtJv*(iv-0.5)
+        tLz = -pi/2.0 + epsJ + dtLz*(iz-0.5)
+
+        Ju = tan(tJu)
+        Jv = tan(tJv)
+        Lz = tan(tLz)
+
+        jacu = (1.0+Ju^2)
+        jacv = (1.0+Jv^2)
+        jacz = (1.0+Lz^2)
+
+        # println("----")
+
+        E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+        u0, u1 = find_bounds_u(E,Lz,I3)
+        v0, v1 = find_bounds_v(E,Lz,I3)
+
+        id_thread = Threads.threadid()
+
+        fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
+        @inbounds Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+
+
+        dFdE = _dFdE(E,Lz)
+        dFdLz = _dFdLz(E,Lz)
+
+        dFdJu = dFdE * Omegau # dF/dJu = dF/dE dE/dJu + dF/dI3 dI3/dJu + dF/dLz dLz/dJu
+        dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
+        dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
+
+        fill_W!(elem[id_thread],E,I3,Lz,u0,u1,grad_matrix[id_thread],nbt,n0,tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWuWv[id_thread],m,freq_matrix[id_thread],nbk,v0,v1,tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread])
+
+
+        for k=1:nbk
+            tab_Mpq_FiniteT_bare_par_sampling!(t,tab_Mpq_bare_par[id_thread],tab_W_temp[id_thread],tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread],tab_omega,nbomega,k,m,dFdJu,dFdJv,dFdLz,Omegau,Omegav,Omegaz,jacu,jacv,jacz,nbn,nbp,n0)
+
+        end
+
+    end
+
+    tab_Mpq_bare = zeros(ComplexF64, nbp, nbp, nbomega)
+
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        tab_Mpq_bare_sampling!(index,tab_Mpq_bare,tab_Mpq_bare_par,nbp,nbomega,pref)
+
+    end
+
+    return tab_Mpq_bare, tab_omega
+end
+
+function ResponseMatrix_FiniteTime_m_GS_sampling_split(t::Float64, m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
+    nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbomega = nbRe * nbIm 
+
+    tab_Mpq_bare, tab_omega = ResponseMatrix_FiniteTime_m_bare_sampling_split(t,m,re_omega_min,re_omega_max,im_omega_min,im_omega_max,nbRe,nbIm,nbJ,nbt)
+
+
+    tab_Mpq = zeros(ComplexF64, nbp, nbp, nbomega)
+
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        compute_tab_Mpq_sampling!(m,n0,index,nbn,nbp,tab_Mpq,tab_Mpq_bare,nbomega)
+
+    end
+
+    return tab_Mpq, tab_omega
+
+end
+
+
+
+
+################################################################################################################################
+################################################################################################################################
+################################################################################################################################
+
+# M_pq(omega, t) finite time
+# table of t-values
+
+function tab_Mpq_FiniteT_sampling_bare_par_sampling!(tabT::Vector{Float64}, nbT::Int64, tab_Mpq_par::Array{ComplexF64, 3}, tab_W_temp::Vector{Float64}, tabWu_kn_temp::Matrix{Float64}, tabWuJ_kn_temp::Matrix{Float64}, tabWv_kl_temp::Matrix{Float64}, tabWvJ_kl_temp::Matrix{Float64}, 
+                        tab_omega::Matrix{Float64}, nbomega::Int64, k::Int64, m::Int64, dFdJu::Float64, dFdJv::Float64, dFdLz::Float64, Omegau::Float64, Omegav::Float64, Omegaz::Float64, jacu::Float64, 
+                        jacv::Float64, jacz::Float64, nbn::Int64, nbp::Int64, n0::Int64)
+
+    # nbkline = 2*kmax+1
+    # k - 1 = (k2+kmax) + (k1+kmax)*(2*kmax+1)
+
+
+
+    k1 =  -kmax + floor(Int64,(k-1)/(2*kmax+1))
+    k2 = k - 1 - (k1+kmax)*(2*kmax+1) - kmax
+
+    kdotdF = k1*dFdJu + k2*dFdJv + m*dFdLz
+    kdotOmega = k1*Omegau + k2*Omegav + m*Omegaz 
+
+
+    for p=1:nbp 
+
+        lp = abs(m) + floor(Int64,(p-1)/nbn)
+        if (mod(lp+m+k2,2)==0)
+            np = p - 1 - (lp-abs(m))*nbn + n0
+            @inbounds Wkp = tabWu_kn_temp[np-n0+1,k]*tabWvJ_kl_temp[lp-abs(m)+1,k] + tabWuJ_kn_temp[np-n0+1,k]*tabWv_kl_temp[lp-abs(m)+1,k] 
+            tab_W_temp[p] = Wkp 
+        end
+    end
+
+
+    for p=1:nbp 
+
+        lp = abs(m) + floor(Int64,(p-1)/nbn)
+
+        if (mod(lp+m+k2,2)==0)
+
+            # np = p - 1 - (lp-abs(m))*nbn + n0
+
+            Wkp = tab_W_temp[p]
+
+            pref = Wkp * kdotdF * jacu * jacv * jacz 
+
+
+            for q=1:p-1
+
+                lq = abs(m) + floor(Int64,(q-1)/nbn)
+
+                if (mod(lq+m+k2,2)==0)
+
+                    # nq = q - 1 - (lq-abs(m))*nbn + n0
+                    Wkq = tab_W_temp[q]
+
+
+                    index = 1 + (q-1) + (p-1)*nbp
+                    indexSym = 1 + (p-1) + (q-1)*nbp
+
+
+                    for iomega=1:nbomega
+
+                        @inbounds re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
+                        omega = re_omega + 1.0im*im_omega
+
+                        den = (omega-kdotOmega) 
+
+                        for iT=1:nbT 
+
+                            integrand = pref * Wkq * KernelGt(tabT[iT],den)
+
+                            @inbounds tab_Mpq_par[iomega,index,iT] += integrand 
+                            @inbounds tab_Mpq_par[iomega,indexSym,iT] += integrand
+                            
+                        end
+                    end
+
+                end
+
+            end
+
+            # case p=q
+
+            index = 1 + (p-1) + (p-1)*nbp     
+
+            for iomega=1:nbomega
+
+                @inbounds re_omega, im_omega = tab_omega[iomega,1], tab_omega[iomega,2]
+                omega = re_omega + 1.0im*im_omega
+
+                den = (omega-kdotOmega) 
+
+                for iT=1:nbT
+                    integrand = Wkp * Wkp * kdotdF * jacu * jacv * jacz * KernelGt(tabT[iT],den)
+                    @inbounds tab_Mpq_par[iomega,index,iT] += integrand 
+
+                end
+
+                
+            end
+
+
+        end
+
+    end
+
+
+end
+
+
+function tab_Mpq_FiniteTime_sampling_bare_sampling!(nbT::Int64, index::Int64, tab_Mpq_bare::Array{ComplexF64, 4}, tab_Mpq_bare_par::Vector{Array{ComplexF64, 3}}, nbp::Int64, nbomega::Int64, pref::Float64)
+
+    # index - 1 = (q-1) + (p-1)*nbp
+
+    p = floor(Int64, (index-1)/nbp) + 1
+    q  = index  - (p-1)*nbp
+
+    for iomega=1:nbomega
+
+       
+
+        for iT=1:nbT
+            for it=1:Threads.nthreads()
+                @inbounds tab_Mpq_bare[p,q,iomega,iT] += tab_Mpq_bare_par[it][iomega,index,iT]
+            end
+
+            @inbounds tab_Mpq_bare[p,q,iomega,iT] *= pref
+
+        end
+        
+
+    end
+
+
+end
+
+function ResponseMatrix_FiniteTime_sampling_m_bare_sampling_split(Tmin::Float64, Tmax::Float64, nbT::Int64, m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
+    nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    @assert (abs(m) <= mmax) "m must be less that m_max"
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbgrid = nbJ^3
+    nbk = (2*kmax+1)^2
+    nbomega = nbRe * nbIm 
+
+    tab_omega = zeros(Float64, nbomega, 2) # (re, im)
+
+    tabT = zeros(Float64, nbT)
+
+    if (nbT > 1)
+        for iT=1:nbT 
+            tabT[iT] = Tmin + (Tmax-Tmin)/(nbT-1) * (iT-1)
+
+        end
+    else
+        tabT[1] = Tmin 
+    end
+
+    for iomega=1:nbomega 
+
+    # iomega - 1 = im-1 + nbIm*(ire-1)
+
+        ire = floor(Int64,(iomega-1)/nbIm) + 1
+        iim = iomega - nbIm*(ire-1)
+
+        if (nbRe > 1)
+            re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
+        else
+            re_omega = re_omega_min
+        end
+
+        if (nbIm > 1)
+            im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
+        else
+            im_omega = im_omega_min
+        end
+
+        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega 
+    end
+
+
+    epsJ = 0.01 # Action cutoff
+
+    dtJu = pi/2.0*(1.0-epsJ)/nbJ
+    dtJv = pi/2.0*(1.0-epsJ)/nbJ
+    dtLz = pi*(1.0-epsJ)/nbJ
+
+    elem = [OrbitalElements_bare_init(nbt) for it=1:Threads.nthreads()]
+
+    freq_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+    grad_matrix = [zeros(Float64, 3, 3)  for it=1:Threads.nthreads()]
+
+    # tab_Mpq_bare_par = [zeros(ComplexF64, nbp*nbp, nbomega) for it=1:Threads.nthreads()] 
+    tab_Mpq_bare_par = [zeros(ComplexF64, nbomega, nbp*nbp, nbT) for it=1:Threads.nthreads()] 
+
+    tabWu_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+    tabWuJ_kn_temp = [zeros(Float64, nbn, nbk) for it=1:Threads.nthreads()] 
+
+    tabWv_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+    tabWvJ_kl_temp = [zeros(Float64, nbl, nbk) for it=1:Threads.nthreads()] 
+
+    tabWuWv = [zeros(Float64, nbk, 4) for it=1:Threads.nthreads()] 
+
+    tab_W_temp = [zeros(Float64, nbp) for it=1:Threads.nthreads()] 
+
+    # Fill the tables of Wkp
+
+    Threads.@threads for iJ=iJmin_default:iJmax_default
+
+        # iJ - 1 = iz-1 + nbz*(iv-1) + nbz*nbv*(iu-1)
+        # nbz = nbJ 
+        # nbv = nbJ 
+
+        # println("----")
+
+        iu = floor(Int64,(iJ - 1)/nbJ^2) + 1
+        leftover = iJ - 1 - nbJ^2*(iu-1)
+
+        # leftover = iz-1 + nbz*(iv-1)
+        # nbz = nbJ 
+
+        iv = floor(Int64,leftover/nbJ) + 1
+        iz = leftover - nbJ*(iv-1) + 1
+
+        tJu = dtJu*(iu-0.5)
+        tJv = dtJv*(iv-0.5)
+        tLz = -pi/2.0 +epsJ + dtLz*(iz-0.5)
+
+        Ju = tan(tJu)
+        Jv = tan(tJv)
+        Lz = tan(tLz)
+
+        jacu = (1.0+Ju^2)
+        jacv = (1.0+Jv^2)
+        jacz = (1.0+Lz^2)
+
+        # println("----")
+
+        E, Lz, I3 = E_Lz_I3_from_Ju_Lz_Jv(Ju,Lz,Jv)
+
+        u0, u1 = find_bounds_u(E,Lz,I3)
+        v0, v1 = find_bounds_v(E,Lz,I3)
+
+        id_thread = Threads.threadid()
+
+        fill_grad_frequency_matrix!(grad_matrix[id_thread],freq_matrix[id_thread],E,Lz,I3)
+        @inbounds Omegau, Omegav, Omegaz = freq_matrix[id_thread][1,1], freq_matrix[id_thread][1,2], freq_matrix[id_thread][1,3]  
+
+
+        dFdE = _dFdE(E,Lz)
+        dFdLz = _dFdLz(E,Lz)
+
+        dFdJu = dFdE * Omegau # dF/dJu = dF/dE dE/dJu + dF/dI3 dI3/dJu + dF/dLz dLz/dJu
+        dFdJv = dFdE * Omegav # dF/dJv = dF/dE dE/dJv + dF/dI3 dI3/dJv + dF/dLz dLz/dJv
+        dFdLz = dFdE * Omegaz + dFdLz # dF/dLz = dF/dE dE/dLz + dF/dI3 dI3/dLz + dF/dLz dLz/dLz
+
+        fill_W!(elem[id_thread],E,I3,Lz,u0,u1,grad_matrix[id_thread],nbt,n0,tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWuWv[id_thread],m,freq_matrix[id_thread],nbk,v0,v1,tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread])
+
+
+        for k=1:nbk
+            tab_Mpq_FiniteT_sampling_bare_par_sampling!(tabT,nbT,tab_Mpq_bare_par[id_thread],tab_W_temp[id_thread],tabWu_kn_temp[id_thread],tabWuJ_kn_temp[id_thread],tabWv_kl_temp[id_thread],tabWvJ_kl_temp[id_thread],tab_omega,nbomega,k,m,dFdJu,dFdJv,dFdLz,Omegau,Omegav,Omegaz,jacu,jacv,jacz,nbn,nbp,n0)
+
+        end
+
+    end
+
+    tab_Mpq_bare = zeros(ComplexF64, nbp, nbp, nbomega, nbT)
+
+    pref = (2*pi)^3 * 4*pi*G/Delta^2 *dtJu*dtJv*dtLz
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        tab_Mpq_FiniteTime_sampling_bare_sampling!(nbT,index,tab_Mpq_bare,tab_Mpq_bare_par,nbp,nbomega,pref)
+
+    end
+
+    return tab_Mpq_bare, tab_omega, tabT
+end
+
+
+function compute_tab_Mpq_FiniteTime_Sampling_sampling!(nbT::Int64, m::Int64, n0::Int64, index::Int64, nbn::Int64, nbp::Int64, 
+                                        tab_Mpq::Array{ComplexF64}, tab_Mpq_bare::Array{ComplexF64}, nbomega::Int64)
+
+
+    # index - 1 = (q-1) + (p-1)*nbp                    
+
+    p = floor(Int64, (index-1)/nbp) + 1
+    q  = index  - (p-1)*nbp
+
+    lp = abs(m) + floor(Int64,(p-1)/nbn)
+    lq = abs(m) + floor(Int64,(q-1)/nbn)
+
+    np = p - 1 - (lp-abs(m))*nbn + n0
+    nq = q - 1 - (lq-abs(m))*nbn + n0
+
+    id_p = tab_index[lp+1,abs(m)+1]
+    id_q = tab_index[lq+1,abs(m)+1]
+
+    for i=n0:nmax
+
+        p_i = 1 + (lp - abs(m))*nbn + i-n0
+        coefGS_i = tab_YGS[id_p][i-n0+1,np-n0+1]
+
+        for j=n0:nmax
+
+            q_j = 1 + (lq - abs(m))*nbn + j-n0
+            coefGS_j = tab_YGS[id_q][j-n0+1,nq-n0+1]
+
+            for iomega=1:nbomega
+
+                for iT=1:nbT
+                    M_pi_qj_bare = tab_Mpq_bare[p_i,q_j,iomega,iT]
+
+                    # Delta because of normalization of bi-orthogonal basis elements
+                    tab_Mpq[p,q,iomega,iT] += coefGS_i*coefGS_j*M_pi_qj_bare*Delta
+                end
+
+            end
+        end
+
+    end
+
+end
+
+
+function ResponseMatrix_FiniteTime_sampling_m_GS_sampling_split(Tmin::Float64, Tmax::Float64, nbT::Int64, m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
+    nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default)
+
+    n0 = 0
+    if (m != 0)
+        n0 = 1
+    end
+
+    nbn = nmax - n0 + 1
+    nbl = lmax - abs(m) + 1
+    nbp = nbl * nbn
+    nbomega = nbRe * nbIm 
+
+    tab_Mpq_bare, tab_omega, tabT = ResponseMatrix_FiniteTime_sampling_m_bare_sampling_split(Tmin,Tmax,nbT,m,re_omega_min,re_omega_max,im_omega_min,im_omega_max,nbRe,nbIm,nbJ,nbt)
+
+
+    tab_Mpq = zeros(ComplexF64, nbp, nbp, nbomega, nbT)
+
+
+    Threads.@threads for index=1:nbp*nbp 
+
+        compute_tab_Mpq_FiniteTime_Sampling_sampling!(nbT,m,n0,index,nbn,nbp,tab_Mpq,tab_Mpq_bare,nbomega)
+
+    end
+
+    return tab_Mpq, tab_omega, tabT
+
+end
