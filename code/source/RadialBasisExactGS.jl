@@ -71,7 +71,8 @@ function get_all_coeffs_GS!()
             n0 = 1
         end
 
-        namefile = "../../nb/GS_coeffs/h_1/l_"*string(l)*"/m_"*string(abs(m))*"/Y_l_"*string(l)*"_m_"*string(m)*".hdf5"
+        # namefile = "../../nb/GS_coeffs/h_1/l_"*string(l)*"/m_"*string(abs(m))*"/Y_l_"*string(l)*"_m_"*string(m)*".hdf5"
+        namefile = path_dir * "GS_coeffs/h_1/l_"*string(l)*"/m_"*string(abs(m))*"/Y_l_"*string(l)*"_m_"*string(m)*".hdf5"
         file = h5open(namefile)
         data = read(file, "tabY")
         tab = [eval(Meta.parse(data[i-n0+1,j-n0+1])) for j=n0:nmax, i=n0:nmax]*1.0

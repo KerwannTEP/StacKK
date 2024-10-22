@@ -1313,9 +1313,10 @@ function ResponseMatrix_m_alt_half(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_d
     nbk = (2*kmax+1)^2
 
 
-    dtJu = pi/2.0/nbJ
-    dtJv = pi/2.0/nbJ
-    dtLz = pi/nbJ
+    epsJ = 0.01 # Action cutoff
+    dtJu = pi/2.0*(1.0-epsJ)/nbJ
+    dtJv = pi/2.0*(1.0-epsJ)/nbJ
+    dtLz = pi*(1.0-epsJ)/nbJ
 
     elem = [OrbitalElements_alt_half_init(nbt) for it=1:Threads.nthreads()]
 
@@ -1350,7 +1351,7 @@ function ResponseMatrix_m_alt_half(m::Int64, omega::ComplexF64, nbJ::Int64=nbJ_d
 
         tJu = dtJu*(iu-0.5)
         tJv = dtJv*(iv-0.5)
-        tLz = -pi/2.0 + dtLz*(iz-0.5)
+        tLz = -pi/2.0 +epsJ+ dtLz*(iz-0.5)
 
         Ju = tan(tJu)
         Jv = tan(tJv)

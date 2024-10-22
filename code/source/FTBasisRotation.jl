@@ -453,9 +453,12 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
     nbk = (2*kmax+1)^2
     nbomega = nbRe * nbIm
 
-    dtJu = pi/2.0/nbJ
-    dtJv = pi/2.0/nbJ
-    dtLz = pi/nbJ
+    epsJ = 0.01 # Action cutoff
+
+    dtJu = pi/2.0*(1.0-epsJ)/nbJ
+    dtJv = pi/2.0*(1.0-epsJ)/nbJ
+    dtLz = pi*(1.0-epsJ)/nbJ
+
 
     tab_omega = zeros(Float64, nbomega, 2) # (re, im)
 
@@ -510,7 +513,7 @@ function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re
 
         tJu = dtJu*(iu-0.5)
         tJv = dtJv*(iv-0.5)
-        tLz = -pi/2.0 + dtLz*(iz-0.5)
+        tLz = -pi/2.0+epsJ + dtLz*(iz-0.5)
 
         Ju = tan(tJu)
         Jv = tan(tJv)

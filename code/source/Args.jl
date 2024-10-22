@@ -8,15 +8,15 @@ tabargs = ArgParseSettings()
     "--a"
     help = "Scale parameter a"
     arg_type = Float64
-    default = 0.6
+    default = 0.9
     "--c"
     help = "Scale parameter c"
     arg_type = Float64
-    default = 0.4
+    default = 0.1
     "--lmax"
     help = "Maximum harmonic number ell"
     arg_type = Int64
-    default = 2
+    default = 3
     "--mmax"
     help = "Maximum harmonic number mmax"
     arg_type = Int64
@@ -24,11 +24,11 @@ tabargs = ArgParseSettings()
     "--nmax"
     help = "Maximum number of radial basis elements"
     arg_type = Int64
-    default = 2
+    default = 3
     "--kmax"
     help = "Maximum resonance number"
     arg_type = Int64
-    default = 16
+    default = 10
     "--nbJ"
     help = "Action integral"
     arg_type = Int64
@@ -77,6 +77,10 @@ tabargs = ArgParseSettings()
     help = "Action space min index integration (for thread splitting) for rotation 2D integral"
     arg_type = Int64
     default = 1
+   "--path_dir"
+    help = "Path directory"
+    arg_type = String
+    default = "/Users/tep/Documents/GitHub/StacKK/"
 end
 parsed_args = parse_args(tabargs)
 
@@ -101,5 +105,7 @@ const iJmin_default = parsed_args["iJmin"]
 const iJmax_default = parsed_args["iJmax"]
 const iJmin2d_default = parsed_args["iJmin2D"]
 const iJmax2d_default = parsed_args["iJmax2D"]
+
+const path_dir = parsed_args["path_dir"]
 
 @assert (a>c) "a<c is an oblate coordinate system"

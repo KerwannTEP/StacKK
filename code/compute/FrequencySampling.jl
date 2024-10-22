@@ -64,7 +64,7 @@ end
 
 
 # namefile = "../../data/sampling_modes_staeckel_a_"*string(a)*"_m_"*string(mmax)*"_lmax_"*string(lmax)*"_nmax_"*string(nmax)*".hf5"
-namefile = "../../data/sampling_modes_staeckel_test_parity_a_"*string(a)*"_m_"*string(mmax)*"_lmax_"*string(lmax)*"_nmax_"*string(nmax)*".hf5"
+namefile = path_dir * "data/sampling_modes_staeckel_test_parity_a_"*string(a)*"_m_"*string(mmax)*"_lmax_"*string(lmax)*"_nmax_"*string(nmax)*".hf5"
 
 function writefile!()
 
