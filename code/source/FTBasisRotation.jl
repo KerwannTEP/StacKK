@@ -1,3 +1,8 @@
+
+############################################################################################
+# Sample the response matrix over a grid of complex frequencies
+############################################################################################
+
 # compute Mpq_a, Mpq_b, Mpq_c
 function ResponseMatrix_m_sampling_rot(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default, epsLz::Float64=4.0*10^(-5))
 
@@ -435,8 +440,11 @@ end
 
 
 
-# THIS IS THE CORRECT FUNCTION
-# USE THIS
+############################################################################################
+# Sample the response matrix over a grid of complex frequencies
+# Split the action integral to distribute the load over multiple nodes
+############################################################################################
+
 function ResponseMatrix_m_sampling_rot_split(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default, epsLz::Float64=4.0*10^(-5), iJmin::Int64=iJmin_default, iJmax::Int64=iJmax_default, iJmin2d::Int64=iJmin2d_default, iJmax2d::Int64=iJmax2d_default)
 
     @assert (abs(m) <= mmax) "m must be less that m_max"
@@ -885,6 +893,11 @@ function det_Dielectric_rot(A, B, C, alpha, size)
 end
 
 
+############################################################################################
+# Sample the response matrix over a grid of complex frequencies
+# Separate Ju,Jv action space sampling from Lz action space sampling
+############################################################################################
+
 
 function ResponseMatrix_m_sampling_rot_split_separate(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, 
                                 nbJu::Int64=nbJ_default, nbJv::Int64=nbJ_default, nbLz::Int64=80, nbt::Int64=nbt_default, epsLz::Float64=1.0*10^(-3), 
@@ -906,9 +919,9 @@ function ResponseMatrix_m_sampling_rot_split_separate(m::Int64, re_omega_min::Fl
 
     epsJ = 0.01 # Action cutoff
 
-    dtJu = pi/2.0*(1.0-epsJ)/nbJ
-    dtJv = pi/2.0*(1.0-epsJ)/nbJ
-    dtLz = pi*(1.0-epsJ)/nbJ
+    dtJu = pi/2.0*(1.0-epsJ)/nbJu
+    dtJv = pi/2.0*(1.0-epsJ)/nbJv
+    dtLz = pi*(1.0-epsJ)/nbLz
 
     tab_omega = zeros(Float64, nbomega, 2) # (re, im)
 
@@ -919,10 +932,19 @@ function ResponseMatrix_m_sampling_rot_split_separate(m::Int64, re_omega_min::Fl
         ire = floor(Int64,(iomega-1)/nbIm) + 1
         iim = iomega - nbIm*(ire-1)
 
-        re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
-        im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
+        if (nbRe > 1)
+            re_omega = re_omega_min + (re_omega_max-re_omega_min)/(nbRe-1)*(ire-1)
+        else
+            re_omega = re_omega_min
+        end
 
-        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega
+        if (nbIm > 1)
+            im_omega = im_omega_min + (im_omega_max-im_omega_min)/(nbIm-1)*(iim-1)
+        else
+            im_omega = im_omega_min
+        end
+
+        tab_omega[iomega,1], tab_omega[iomega,2] = re_omega, im_omega 
     end
 
 
@@ -1318,4 +1340,29 @@ function ResponseMatrix_m_sampling_rot_split_separate(m::Int64, re_omega_min::Fl
     # savefig(pt, "integrand.png")
 
     return tab_Mpq_a, tab_Mpq_b, tab_Mpq_c, tab_omega
+end
+
+
+
+############################################################################################
+# Evaluate the response matrix at a complex frequency
+# Separate Ju,Jv action space sampling from Lz action space sampling
+############################################################################################
+
+
+# function ResponseMatrix_m_sampling_rot_split_separate(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, nbRe::Int64, nbIm::Int64, 
+#     nbJu::Int64=nbJ_default, nbJv::Int64=nbJ_default, nbLz::Int64=80, nbt::Int64=nbt_default, epsLz::Float64=1.0*10^(-3), 
+#     iJmin::Int64=iJmin_default, iJmax::Int64=iJmax_default, iJmin2d::Int64=iJmin2d_default, iJmax2d::Int64=iJmax2d_default)
+
+# @assert (abs(m) <= mmax) "m must be less that m_max"
+
+
+
+function ResponseMatrix_m_rot_separate(m::Int64, omega::ComplexF64,  nbJu::Int64=nbJ_default, nbJv::Int64=nbJ_default, nbLz::Int64=80, 
+                                                nbt::Int64=nbt_default, epsLz::Float64=1.0*10^(-3))
+
+    tab_Mpq_a, tab_Mpq_b, tab_Mpq_c, _ = ResponseMatrix_m_sampling_rot_split_separate(m, real(omega), real(omega), imag(omega), imag(omega), 1, 1, 
+                                                                                                nbJu, nbJv, nbLz, nbt, epsLz, 1, nbJu*nbJv*nbLz, 1, nbJu*nbJv)
+
+    return tab_Mpq_a[:,:,1], tab_Mpq_b[:,:,1], tab_Mpq_c[:,:,1]
 end

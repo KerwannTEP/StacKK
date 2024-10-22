@@ -1,20 +1,26 @@
 # Compute the response matrix at a given frequency 
+
+
 println("Nb threads = ",Threads.nthreads())
 
 include("../source/Main.jl")
 
 const omega = 0.0 + 0.2im 
+const alphaRot = 1.0
 
-# WRITE A MATRIX EVALUATION WITHOUT GRID 
-# ADAPT GRID FUNCTION FOR 1*1 GRID CASE 
-# COMPARE WITH TEX_STACKEL
+# Get the GS decomposition out of the matrix
+# Use only for nmax <= 10
+# Beyond that: numerical instability
+tab_Mpq_a, tab_Mpq_b, tab_Mpq_c = ResponseMatrix_m_GS_rot_separate(mmax, omega, nbJ_default, nbJ_default, nbJ_default, nbt_default, 1.0*10^(-3))
+tab_Mpq = tab_Mpq_a + alphaRot * (tab_Mpq_b + tab_Mpq_c)
 
+display(tab_Mpq)
 
-# tab_Mpq, tab_omega = ResponseMatrix_m_GS_sampling(mmax, real(omega), real(omega), imag(omega), imag(omega), 1, 1, nbJ_default, nbt_default)
-tab_Mpq_a, tab_Mpq_b, tab_Mpq_c, tab_omega = ResponseMatrix_m_GS_sampling_rot_split_separate(mmax,  real(omega), real(omega), imag(omega), imag(omega), 1, 1, nbJ_default, nbJ_default, nbJ_default, 
-                                                                                            nbt_default, 1.0*10^(-3), 1, nbJ_default^3, 1, nbJ_default^2)
-# display(tab_Mpq)
+println("---------------------")
 
-display(tab_Mpq_a)
-display(tab_Mpq_b)
-display(tab_Mpq_c)
+# Use the GS decomposition within the matrix 
+# Slower but numerically accurate
+tab_Mpq_a, tab_Mpq_b, tab_Mpq_c = ResponseMatrix_m_rot_separate(mmax, omega, nbJ_default, nbJ_default, nbJ_default, nbt_default, 1.0*10^(-3))
+tab_Mpq = tab_Mpq_a + alphaRot * (tab_Mpq_b + tab_Mpq_c)
+
+display(tab_Mpq)

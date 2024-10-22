@@ -191,6 +191,11 @@ function tab_Mpq_c_bare_par_sampling_rot!(tab_Mpq_c_par::Matrix{ComplexF64}, tab
 
 end
 
+############################################################################################
+# Sample the response matrix over a grid of complex frequencies
+# Split the action integral to distribute the load over multiple nodes
+############################################################################################
+
 function ResponseMatrix_m_bare_sampling_rot_split(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
     nbRe::Int64, nbIm::Int64, nbJ::Int64=nbJ_default, nbt::Int64=nbt_default, epsLz::Float64=1.0*10^(-3), iJmin::Int64=iJmin_default, iJmax::Int64=iJmax_default, iJmin2d::Int64=iJmin2d_default, iJmax2d::Int64=iJmax2d_default)
 
@@ -483,8 +488,10 @@ function ResponseMatrix_m_GS_sampling_rot_split(m::Int64, re_omega_min::Float64,
 end
 
 
-#################
-#################
+############################################################################################
+# Sample the response matrix over a grid of complex frequencies
+# Separate Ju,Jv action space sampling from Lz action space sampling
+############################################################################################
 
 
 function ResponseMatrix_m_bare_sampling_rot_split_separate(m::Int64, re_omega_min::Float64, re_omega_max::Float64, im_omega_min::Float64, im_omega_max::Float64, 
@@ -734,4 +741,19 @@ function ResponseMatrix_m_GS_sampling_rot_split_separate(m::Int64, re_omega_min:
 
     return tab_Mpq_a, tab_Mpq_b, tab_Mpq_c, tab_omega
 
+end
+
+############################################################################################
+# Evaluate the response matrix at a complex frequency
+# Separate Ju,Jv action space sampling from Lz action space sampling
+############################################################################################
+
+function ResponseMatrix_m_GS_rot_separate(m::Int64, omega::ComplexF64, 
+                    nbJu::Int64=nbJ_default, nbJv::Int64=nbJ_default, nbLz::Int64=80, 
+                    nbt::Int64=nbt_default, epsLz::Float64=1.0*10^(-3))
+
+    tab_Mpq_a, tab_Mpq_b, tab_Mpq_c, _ = ResponseMatrix_m_GS_sampling_rot_split_separate(m, real(omega), real(omega), imag(omega),  imag(omega), 
+                                                                                                1, 1 ,nbJu, nbJv, nbLz, nbt, epsLz, 1, nbJu*nbJv*nbLz, 1, nbJu*nbJv)
+
+    return tab_Mpq_a[:,:,1], tab_Mpq_b[:,:,1], tab_Mpq_c[:,:,1]
 end
